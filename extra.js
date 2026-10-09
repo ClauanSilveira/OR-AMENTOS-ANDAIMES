@@ -54,6 +54,7 @@ if (typeof document !== 'undefined') (function () {
   window.APP.getExtras = () => ({ visitas, progs });
   window.APP.getVisAtual = () => vis;
   window.APP.addVisita = v => { v.id = uid(); visitas.push(v); vis = v; persist(); renderVisita(); mostrarVisita(); };
+  window.APP.novaVisita = () => { novaV(); mostrarVisita(); };
   window.APP.refreshVis = () => { persist(); if (!$('#tab-visita').hidden) renderVisita(); };
   const mostrarVisita = () => { const b = document.querySelector('nav button[data-tab="visita"]'); if (b) b.click(); };
   window.APP.setExtras = e => { (e.visitas || []).forEach(v => { v.id = uid(); visitas.push(v); }); (e.progs || []).forEach(v => { v.id = uid(); progs.push(v); }); vis = vis || visitas[0]; prog = prog || progs[0]; persist(); };
