@@ -52,6 +52,10 @@ if (typeof document !== 'undefined') (function () {
   }
   const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   window.APP.getExtras = () => ({ visitas, progs });
+  window.APP.getVisAtual = () => vis;
+  window.APP.addVisita = v => { v.id = uid(); visitas.push(v); vis = v; persist(); renderVisita(); mostrarVisita(); };
+  window.APP.refreshVis = () => { persist(); if (!$('#tab-visita').hidden) renderVisita(); };
+  const mostrarVisita = () => { const b = document.querySelector('nav button[data-tab="visita"]'); if (b) b.click(); };
   window.APP.setExtras = e => { (e.visitas || []).forEach(v => { v.id = uid(); visitas.push(v); }); (e.progs || []).forEach(v => { v.id = uid(); progs.push(v); }); vis = vis || visitas[0]; prog = prog || progs[0]; persist(); };
 
   const CHK_E = [['limpeza', 'Necessita de limpeza no local'], ['@limpeza', ''], ['parada', 'Execução em parada'], ['rotina', 'Execução em rotina'], ['bloqueio', 'Necessário bloqueio'], ['material', 'Material disponível no local'], ['solo', 'Solo adequado para implantação'], ['acesso', 'Livre acesso para descarga do material']];
@@ -92,7 +96,7 @@ if (typeof document !== 'undefined') (function () {
     <div class="card"><h2>Relatório de visita técnica</h2><div class="grid">
       ${f('data', 'Data da visita', 'date')}${f('representante', 'Representante CBSI')}${f('solicitante', 'Solicitante (cliente)')}${f('local', 'Local')}
       ${f('inicio', 'Início previsto', 'date')}${f('equipe', 'Quant. de equipe', 'number', 'min="0"')}
-      <label>Status<select data-vf="status">${STATUS.map(p => `<option ${p === stDe(vis) ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
+      <label>Status<select data-vf="status" ${vis.nuvemId && !(window.APP.nuvem && window.APP.nuvem.admin) ? 'disabled title="O status é atualizado pelo administrador"' : ''}>${STATUS.map(p => `<option ${p === stDe(vis) ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
       <label>Prioridade<select data-vf="prioridade">${['', 'Baixa', 'Média', 'Alta', 'Urgente'].map(p => `<option ${p === vis.prioridade ? 'selected' : ''}>${p}</option>`).join('')}</select></label></div></div>
     <div class="card"><h2>Itens de verificação</h2><div class="cols2"><div>${CHK_E.map(chk).join('')}</div><div>${CHK_D.map(chk).join('')}</div></div></div>
     <div class="card"><h2>Observações gerais</h2><textarea rows="5" data-vf="obs">${esc(vis.obs)}</textarea></div>
