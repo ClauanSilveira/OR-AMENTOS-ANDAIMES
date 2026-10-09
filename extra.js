@@ -93,8 +93,10 @@ if (typeof document !== 'undefined') (function () {
     <div class="card"><h2>Observações gerais</h2><textarea rows="5" data-vf="obs">${esc(vis.obs)}</textarea></div>
     <div class="card"><h2>Descrição do andaime</h2>
       ${vis.andaimes.map((a, i) => `<div class="est"><div class="est-grid tipo"><label>Tipo<select data-va="${i}" data-k="tipo">${tipoOpts(a.tipo)}</select></label><label>Identificação<input data-va="${i}" data-k="desc" value="${esc(a.desc)}" placeholder="ex.: Torre acesso correia"></label><button class="btn x" data-vdel="${i}">Remover</button></div>
-      <div class="est-grid">${['c:Comp. (m)', 'l:Larg. (m)', 'a:Alt. (m)', 'q:Qtd'].map(s => { const [k, l] = s.split(':'); return `<label>${l}<input type="number" step="any" min="0" data-va="${i}" data-k="${k}" value="${a[k]}"></label>`; }).join('')}</div></div>`).join('')}
-      <button class="btn sec" id="visAdd">+ Andaime</button></div>
+      <div class="est-grid">${['c:Comp. (m)', 'l:Larg. (m)', 'a:Alt. (m)', 'q:Qtd'].map(s => { const [k, l] = s.split(':'); return `<label>${l}<input type="number" step="any" min="0" data-va="${i}" data-k="${k}" value="${a[k]}"></label>`; }).join('')}</div><div class="res" data-vres="${i}"></div></div>`).join('')}
+      <div class="linha-btns"><button class="btn sec" id="visAdd">+ Andaime</button>
+      <select id="visImpOrc"><option value="">Importar do orçamento…</option>${(window.APP.getLista() || []).map((o, k) => `<option value="${k}">${esc((o.numero ? o.numero + ' - ' : '') + (o.titulo || o.local || 'Sem título'))}</option>`).join('')}</select></div>
+      <div class="kpis" id="visKpis"></div></div>
     <div class="card"><h2>Croqui</h2><div class="tools"><button class="btn sec mini on" data-tool="pen">Caneta</button><button class="btn sec mini" data-tool="eraser">Borracha</button>
       ${['#000000', '#1565c0', '#c62828'].map(c => `<button class="cor ${c === ferr.cor ? 'on' : ''}" style="background:${c}" data-cor="${c}"></button>`).join('')}
       <button class="btn x mini" data-limpa="croqui">Limpar</button></div><canvas id="cvCroqui" class="pad grade"></canvas></div>
@@ -106,13 +108,34 @@ if (typeof document !== 'undefined') (function () {
     $('#visNova').onclick = novaV; $('#visDup').onclick = () => { const c = JSON.parse(JSON.stringify(vis)); c.id = uid(); visitas.push(c); vis = c; persist(); renderVisita(); };
     $('#visDel').onclick = () => { if (confirm('Excluir esta visita?')) { visitas = visitas.filter(v => v !== vis); vis = visitas[0]; persist(); renderVisita(); } };
     $('#visAdd').onclick = () => { vis.andaimes.push({ tipo: 'andaime', desc: '', c: '', l: '', a: '', q: 1 }); persist(); renderVisita(); };
+    $('#visImpOrc').onchange = e => { const o = window.APP.getLista()[e.target.value]; if (o) importaOrc(o); };
     $('#visBar').textContent = nomeVis(vis);
+    atualizaVis();
+  }
+  // cálculo automático dos andaimes da visita (metragem e custo pela tabela de preços)
+  function atualizaVis() {
+    if (!vis) return; let tot = 0; const porUn = {};
+    vis.andaimes.forEach((a, i) => {
+      const x = window.APP.calcEst(CORE.novaEstrutura(a)), un = unTipo(a.tipo); tot += x.total; porUn[un] = (porUn[un] || 0) + x.metragem;
+      const el = document.querySelector(`[data-vres="${i}"]`); if (el) el.innerHTML = `Metragem: <b>${nq.format(Math.round(x.metragem * 1000) / 1000)} ${un}</b> • Custo: <b>${brl(x.total)}</b>`;
+    });
+    const k = (l, v) => `<div class="kpi"><small>${l}</small><strong>${v}</strong></div>`, el = $('#visKpis');
+    if (el) el.innerHTML = Object.entries(porUn).map(([un, m]) => k('Total ' + un, nq.format(Math.round(m * 1000) / 1000))).join('') + k('Custo estimado', brl(tot));
+  }
+  function importaOrc(o) {
+    const novos = [];
+    o.pontos.forEach(p => p.estruturas.forEach(e => novos.push({ ...JSON.parse(JSON.stringify(e)), desc: [p.nome, e.desc].filter(Boolean).join(' - ') })));
+    if (!novos.length) return alert('Este orçamento não tem andaimes.');
+    if (vis.andaimes.length === 1 && !vis.andaimes[0].desc && !N(vis.andaimes[0].c) && !N(vis.andaimes[0].l) && !N(vis.andaimes[0].a)) vis.andaimes = [];
+    vis.andaimes.push(...novos);
+    if (!vis.local) vis.local = o.local || ''; if (!vis.solicitante) vis.solicitante = o.cliente || '';
+    persist(); renderVisita();
   }
   function novaV() { vis = novaVisita(); visitas.push(vis); persist(); renderVisita(); }
   $('#visRoot').addEventListener('input', e => {
     const d = e.target.dataset;
     if (d.vf !== undefined) vis[d.vf] = e.target.value; else if (d.va !== undefined) vis.andaimes[d.va][d.k] = e.target.value; else return;
-    if (d.vf === 'local' || d.vf === 'data') $('#visBar').textContent = nomeVis(vis); persist();
+    if (d.vf === 'local' || d.vf === 'data') $('#visBar').textContent = nomeVis(vis); persist(); if (d.va !== undefined) atualizaVis();
   });
   $('#visRoot').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
@@ -202,7 +225,10 @@ if (typeof document !== 'undefined') (function () {
     const mk = k => k === '' ? ['', '', ''] : [CHK_LBL[k], v.checks[k] === 's' ? 'X' : '', v.checks[k] === 'n' ? 'X' : ''];
     const E = ['limpeza', '@', 'parada', 'rotina', 'bloqueio', 'material', 'solo', 'acesso'], D = ['batedor', 'treino', 'spot', 'interf', 'ancora', 'andRotina', 'andExtra', ''];
     const body = E.map((e, i) => { const l = e === '@' ? ['Caso sim, informar pontos de limpeza' + (v.checks.limpeza === 's' && v.pontosLimpeza ? ': ' + v.pontosLimpeza : ''), '', ''] : mk(e); return [...l, ...mk(D[i])]; });
-    doc.autoTable({ startY: doc.lastAutoTable.finalY + 2, theme: 'grid', head: [['Itens de Verificação', 'Sim', 'Não', 'Itens de Verificação', 'Sim', 'Não']], body, headStyles: head, styles: st, margin: mg, columnStyles: { 0: { cellWidth: 56 }, 1: { cellWidth: 10, halign: 'center', fontStyle: 'bold' }, 2: { cellWidth: 10, halign: 'center', fontStyle: 'bold' }, 3: { cellWidth: 56 }, 4: { cellWidth: 10, halign: 'center', fontStyle: 'bold' }, 5: { cellWidth: 10, halign: 'center', fontStyle: 'bold' } } });
+    const pen = mk('andExtra'), c = { valign: 'middle' }; // célula direita vazia: o último item ocupa as duas linhas
+    body[6].splice(3, 3, { content: pen[0], rowSpan: 2, styles: c }, { content: pen[1], rowSpan: 2, styles: c }, { content: pen[2], rowSpan: 2, styles: c });
+    body[7] = body[7].slice(0, 3);
+    doc.autoTable({ startY: doc.lastAutoTable.finalY + 2, theme: 'grid', head: [['Itens de Verificação', 'Sim', 'Não', 'Itens de Verificação', 'Sim', 'Não']], body, headStyles: head, styles: st, margin: mg, columnStyles: { 0: { cellWidth: 75 }, 1: { cellWidth: 10, halign: 'center', fontStyle: 'bold' }, 2: { cellWidth: 10, halign: 'center', fontStyle: 'bold' }, 3: { cellWidth: 75 }, 4: { cellWidth: 10, halign: 'center', fontStyle: 'bold' }, 5: { cellWidth: 10, halign: 'center', fontStyle: 'bold' } } });
     doc.autoTable({ startY: doc.lastAutoTable.finalY + 2, theme: 'grid', head: [['Observações Gerais:']], body: [[v.obs || ' ']], headStyles: { ...head, halign: 'left' }, styles: st, bodyStyles: { minCellHeight: 30, valign: 'top' }, margin: mg });
     const lin = v.andaimes.map(a => [CORE.TIPOS[a.tipo].nome.replace(/ \(.*\)$/, '') + (a.desc ? ' - ' + a.desc : ''), a.q || '', a.c, a.l, a.a]);
     while (lin.length < 7) lin.push(['', '', '', '', '']);
