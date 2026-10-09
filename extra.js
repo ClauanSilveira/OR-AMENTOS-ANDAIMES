@@ -217,7 +217,7 @@ if (typeof document !== 'undefined') (function () {
   }
   const AZ = [14, 63, 86];
   function pdfVisita(v) {
-    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' }), M = 10, W = 210, mg = { left: M, right: M };
+    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true }), M = 10, W = 210, mg = { left: M, right: M };
     cab(doc, 'RELATÓRIO VISITA TÉCNICA ANDAIME - PARÁ', 'FO - 1939', 'Revisão:   0', 'Data Rev.:   26/02/2026');
     const head = { fillColor: AZ, textColor: 255, halign: 'center', fontSize: 8.5 }, st = { fontSize: 8.5, lineColor: [40, 40, 40], lineWidth: 0.2, cellPadding: 1.8 };
     doc.autoTable({ startY: 33, theme: 'grid', head: [['Data Visita', 'Representante CBSI', 'Solicitante Cliente', 'Local']], body: [[br(v.data), v.representante, v.solicitante, v.local]], headStyles: head, styles: st, margin: mg });
@@ -245,11 +245,11 @@ if (typeof document !== 'undefined') (function () {
     entrega(doc, `Visita_${(v.local || 'andaimes').replace(/[^\w-]+/g, '_').slice(0, 30)}_${v.data}.pdf`);
   }
   const CHK_LBL = Object.fromEntries([...CHK_E, ...CHK_D]);
-  function entrega(doc, nome) { const file = new File([doc.output('blob')], nome, { type: 'application/pdf' }); if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: nome }).catch(() => { }); else doc.save(nome); }
+  function entrega(doc, nome) { entregaPdf(doc, nome); }
   $('#visPdf').onclick = () => { if (!vis) return; try { pdfVisita(vis); } catch (e) { console.error(e); alert('Erro ao gerar PDF: ' + e.message); } };
 
   function pdfProg(p) {
-    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' }), M = 10, r = calcProg(p), W = 210;
+    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true }), M = 10, r = calcProg(p), W = 210;
     cab(doc, 'PROGRAMAÇÃO DE ANDAIMES', 'PROGRAMAÇÃO', 'Início: ' + br(p.dataInicio), (p.local || '').slice(0, 28));
     const head = { fillColor: AZ, textColor: 255, fontSize: 8.5 }, mg = { left: M, right: M };
     doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(30); doc.text(p.nome || '', M, 37);

@@ -1,6 +1,16 @@
 /* Orçamentos de Andaimes — lógica de cálculo (pura) + interface */
 'use strict';
 
+// Celular/tablet: abre o compartilhar; computador: baixa o PDF direto
+function entregaPdf(doc, nome) {
+  const movel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  if (movel && navigator.canShare) {
+    const file = new File([doc.output('blob')], nome, { type: 'application/pdf' });
+    if (navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: nome }).catch(() => { }); return; }
+  }
+  doc.save(nome);
+}
+
 // ---------- CÁLCULO ----------
 // Cada tipo aponta para os itens do contrato: x.<mont>/x.<des> por regime (2=ADM, 3=Noturno, 4=Fim de semana, 5=Subestação)
 // e disponibilização 7.<disp> (8.<disp> para material isolante).
@@ -283,7 +293,7 @@ if (typeof document !== 'undefined') (function () {
     try { gerarPdf(); } catch (e) { console.error(e); alert('Erro ao gerar PDF: ' + e.message); }
   };
   function gerarPdf() {
-    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
     const r = calcOrc(orc, mapa), W = 210, M = 12, AZ = [14, 63, 86], CI = [0, 173, 249];
     const m = v => brl(v).replace(/ /g, ' ');
     const dt = orc.data ? orc.data.split('-').reverse().join('/') : '';
@@ -339,9 +349,7 @@ if (typeof document !== 'undefined') (function () {
     const n = doc.getNumberOfPages();
     for (let k = 1; k <= n; k++) { doc.setPage(k); doc.setFontSize(8); doc.setTextColor(130); doc.text(`Página ${k} de ${n}`, W / 2, 291, { align: 'center' }); }
     const nome = `Orcamento_${(orc.cliente || orc.titulo || 'andaimes').replace(/[^\w-]+/g, '_').slice(0, 40)}_${orc.data || ''}.pdf`;
-    const file = new File([doc.output('blob')], nome, { type: 'application/pdf' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: nome }).catch(() => { });
-    else doc.save(nome);
+    entregaPdf(doc, nome);
   }
 
   window.APP.getOrc = () => orc;
