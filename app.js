@@ -355,6 +355,13 @@ if (typeof document !== 'undefined') (function () {
   window.APP.getOrc = () => orc;
   window.APP.addOrc = o => { o.id = novoOrc().id; lista.push(o); orc = o; tudo(); salvar(); mostrar('orcamento'); };
   window.APP.mostrar = mostrar;
+  // ao entrar: abre um orçamento em branco (reaproveita um vazio que já exista; não apaga nada)
+  window.APP.orcEmBranco = () => {
+    const vazio = o => !o.titulo && !o.cliente && !o.local && !o.obs && (o.pontos || []).every(p => (p.estruturas || []).every(e => !+e.c && !+e.l && !+e.a && !e.desc));
+    orc = lista.find(vazio);
+    if (!orc) { orc = novoOrc(); orc.numero = proxNumero(); lista.push(orc); }
+    tudo(); salvar();
+  };
   window.APP.recarregarOrc = () => { tudo(); salvar(); };
   window.APP.getLista = () => lista;
   window.APP.calcEst = e => calcEstrutura(e, mapa);
