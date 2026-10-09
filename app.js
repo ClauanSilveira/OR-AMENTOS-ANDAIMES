@@ -172,8 +172,8 @@ if (typeof document !== 'undefined') (function () {
       <details><summary>Memória de cálculo — <span data-out="est${i}_${j}"></span></summary><div class="tabela-scroll" data-out="det${i}_${j}"></div></details>
     </div>`;
   }
-  const tabLinhas = ls => `<table><tr><th>SGC</th><th>Contrato</th><th>Descrição</th><th>UN</th><th class="n">P. unit.</th><th class="n">Qtd</th><th class="n">Custo</th></tr>` +
-    (ls.length ? ls.map(l => `<tr${l.semPreco ? ' style="color:#b3261e"' : ''}><td>${l.sgc}</td><td>${l.linha}</td><td>${esc(l.desc)}</td><td>${esc(l.un)}</td><td class="n">${nf.format(l.preco)}</td><td class="n">${nq.format(l.qtd)}</td><td class="n">${nf.format(l.custo)}</td></tr>`).join('') : '<tr><td colspan="7">Sem linhas (verifique %, dimensões e dias).</td></tr>') + '</table>';
+  const tabLinhas = ls => `<table><tr><th>SGC</th><th>Contrato</th><th>Descrição</th><th>UN</th><th class="n">Custo</th></tr>` +
+    (ls.length ? ls.map(l => `<tr${l.semPreco ? ' style="color:#b3261e"' : ''}><td>${l.sgc}</td><td>${l.linha}</td><td>${esc(l.desc)}</td><td>${esc(l.un)}</td><td class="n">${brl(l.custo)}</td></tr>`).join('') : '<tr><td colspan="5">Sem linhas (verifique %, dimensões e dias).</td></tr>') + '</table>';
 
   function renderVerbas() {
     $('#verbas').innerHTML = orc.verbas.map((v, i) => `<div class="verba">
@@ -266,7 +266,7 @@ if (typeof document !== 'undefined') (function () {
 
   // ----- salvos -----
   function renderSalvos() {
-    $('#listaSalvos').innerHTML = lista.map(o => `<div class="salvo ${o.id === orc.id ? 'atual' : ''}"><div class="info"><strong>${esc(o.numero || 's/ nº')} — ${esc(o.titulo || 'Sem título')}</strong><br><small>${esc(o.cliente)} ${o.data ? '• ' + o.data.split('-').reverse().join('/') : ''} • ${brl(calcOrc(o, mapa).total)}</small></div><button class="btn sec mini" data-act="abrir" data-id="${o.id}">Abrir</button><button class="btn x" data-act="excluir" data-id="${o.id}">Excluir</button></div>`).join('');
+    $('#listaSalvos').innerHTML = lista.map(o => `<div class="salvo ${o.id === orc.id ? 'atual' : ''}"><div class="info"><strong>${esc(o.titulo || 'Sem título')}</strong><br><small>${esc(o.cliente)} ${o.data ? '• ' + o.data.split('-').reverse().join('/') : ''} • ${brl(calcOrc(o, mapa).total)}</small></div><button class="btn sec mini" data-act="abrir" data-id="${o.id}">Abrir</button><button class="btn x" data-act="excluir" data-id="${o.id}">Excluir</button></div>`).join('');
   }
   $('#novoOrc').onclick = () => { orc = novoOrc(); orc.numero = proxNumero(); lista.push(orc); tudo(); salvar(); mostrar('orcamento'); };
   $('#expOrc').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ lista, precos }, null, 1)], { type: 'application/json' })); a.download = 'orcamentos-backup.json'; a.click(); };
@@ -288,27 +288,28 @@ if (typeof document !== 'undefined') (function () {
     doc.setFillColor(...AZ); doc.rect(0, 0, W, 30, 'F');
     doc.addImage(window.LOGO_BRANCA, 'PNG', M, 6, 46, 19.7);
     doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text('ORÇAMENTO', W - M, 14, { align: 'right' });
-    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`Nº ${orc.numero || '-'}   •   ${dt}`, W - M, 21, { align: 'right' });
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(dt, W - M, 21, { align: 'right' });
     doc.setFillColor(...CI); doc.rect(0, 30, W, 1.5, 'F');
     doc.setTextColor(30); doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
     const tit = doc.splitTextToSize(orc.titulo || 'Orçamento de serviços de andaimes', W - 2 * M); doc.text(tit, M, 40);
     let y = 40 + tit.length * 5.5;
-    const info = [['Cliente', orc.cliente], ['Local / Unidade', orc.local], ['A/C', orc.contato], ['Prazo de execução', orc.prazo], ['Condições de pagamento', orc.pagamento], ['Validade da proposta', orc.validade ? orc.validade + ' dias' : ''], ['Responsável', orc.responsavel]].filter(x => x[1]);
+    const info = [['Cliente', orc.cliente], ['Local / Unidade', orc.local], ['Responsável', orc.responsavel]].filter(x => x[1]);
     if (info.length) { doc.autoTable({ startY: y, body: info, theme: 'plain', styles: { fontSize: 9, cellPadding: 1 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45, textColor: AZ } }, margin: { left: M, right: M } }); y = doc.lastAutoTable.finalY + 9; }
     // resumo
     const sub = (t) => { doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text(t, M, y); y += 2; };
+    const contabil = col => ({ didParseCell: d => { if (d.column.index === col && d.section === 'head') d.cell.styles.halign = 'right'; if (d.column.index === col && d.section === 'body' && d.cell.colSpan === 1) d.cell.styles.valign = 'middle'; if (d.column.index === col && d.cell.colSpan === 1 && /^-?[\d.]+,\d{2}$/.test(d.cell.text.join(''))) { d.cell.contabil = true; } }, didDrawCell: d => { if (d.cell.contabil) { doc.setFont('helvetica', d.cell.styles.fontStyle || 'normal'); doc.setFontSize(d.cell.styles.fontSize); doc.setTextColor(0); doc.text('R$', d.cell.x + 1.5, d.cell.y + d.cell.height / 2 + d.cell.styles.fontSize * 0.12, {}); } } });
     const head = { fillColor: AZ, textColor: 255, fontSize: 8.5 };
     sub('RESUMO');
-    const res = orc.pontos.map((p, i) => [p.nome || 'Ponto ' + (i + 1), m(r.pontos[i].total)]);
-    if (r.verbas.length) res.push(['Verbas fixas / outros itens', m(r.totVerbas)]);
-    res.push([{ content: 'Subtotal', styles: { fontStyle: 'bold' } }, { content: m(r.subtotal), styles: { fontStyle: 'bold' } }]);
-    if (r.desconto) res.push([`Desconto (${nq.format(num(orc.desconto))}%)`, '- ' + m(r.desconto)]);
-    if (r.bdi) res.push([`Impostos / BDI (${nq.format(num(orc.bdi))}%)`, m(r.bdi)]);
-    res.push([{ content: 'TOTAL GERAL', styles: { fontStyle: 'bold', fillColor: [233, 246, 253], fontSize: 11 } }, { content: m(r.total), styles: { fontStyle: 'bold', fillColor: [233, 246, 253], fontSize: 11 } }]);
-    doc.autoTable({ startY: y, head: [['Descrição', 'Valor']], body: res, headStyles: head, styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right', cellWidth: 45 } }, margin: { left: M, right: M } });
+    const res = orc.pontos.map((p, i) => [p.nome || 'Ponto ' + (i + 1), nf.format(r.pontos[i].total)]);
+    if (r.verbas.length) res.push(['Verbas fixas / outros itens', nf.format(r.totVerbas)]);
+    res.push([{ content: 'Subtotal', styles: { fontStyle: 'bold' } }, { content: nf.format(r.subtotal), styles: { fontStyle: 'bold' } }]);
+    if (r.desconto) res.push([`Desconto (${nq.format(num(orc.desconto))}%)`, nf.format(-r.desconto)]);
+    if (r.bdi) res.push([`Impostos / BDI (${nq.format(num(orc.bdi))}%)`, nf.format(r.bdi)]);
+    res.push([{ content: 'TOTAL GERAL', styles: { fontStyle: 'bold', fillColor: [233, 246, 253], fontSize: 11 } }, { content: nf.format(r.total), styles: { fontStyle: 'bold', fillColor: [233, 246, 253], fontSize: 11 } }]);
+    doc.autoTable({ startY: y, head: [['Descrição', 'Valor (R$)']], body: res, headStyles: head, ...contabil(1), styles: { fontSize: 9 }, columnStyles: { 1: { halign: 'right', cellWidth: 45 } }, margin: { left: M, right: M } });
     y = doc.lastAutoTable.finalY + 8;
     // detalhamento
-    const cols = { 0: { cellWidth: 12 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 12 }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 22, halign: 'right' }, 5: { cellWidth: 26, halign: 'right' } };
+    const cols = { 0: { cellWidth: 14 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 26 }, 3: { cellWidth: 34, halign: 'right' } };
     const ensure = h => { if (y + h > 280) { doc.addPage(); y = 16; } };
     orc.pontos.forEach((p, i) => {
       ensure(30); sub((p.nome || 'Ponto ' + (i + 1)).toUpperCase());
@@ -316,26 +317,25 @@ if (typeof document !== 'undefined') (function () {
       p.estruturas.forEach((e, j) => {
         const x = r.pontos[i].ests[j], t = TIPOS[e.tipo];
         const dm = ['c', 'l', 'a', 'q'].filter(k => t.dims.includes(k)).map(k => ({ c: 'C', l: 'L', a: 'A', q: 'Qtd' }[k] + ' ' + nq.format(num(e[k])))).join(' × ');
-        body.push([{ content: `${e.desc ? e.desc + ' — ' : ''}${t.nome}   |   ${dm}${e.isolante ? '   |   Material isolante' : ''}`, colSpan: 6, styles: { fillColor: [223, 233, 238], fontStyle: 'bold', textColor: AZ } }]);
+        body.push([{ content: `${e.desc ? e.desc + ' — ' : ''}${t.nome}   |   ${dm}${e.isolante ? '   |   Material isolante' : ''}`, colSpan: 4, styles: { fillColor: [223, 233, 238], fontStyle: 'bold', textColor: AZ } }]);
         let g = '';
-        x.linhas.forEach(l => { if (l.grupo !== g) { g = l.grupo; body.push([{ content: g + (g.startsWith('Disp') ? '' : ` — ${nq.format(num(e.isolante ? 100 : e[REGIMES.find(z => z.nome === g)?.k]))}% executado`), colSpan: 6, styles: { fontStyle: 'italic', textColor: 90 } }]); } body.push([l.sgc, l.desc, l.un, nf.format(l.preco), nq.format(l.qtd), nf.format(l.custo)]); });
+        x.linhas.forEach(l => { if (l.grupo !== g) { g = l.grupo; body.push([{ content: g + (g.startsWith('Disp') ? '' : ` — ${nq.format(num(e.isolante ? 100 : e[REGIMES.find(z => z.nome === g)?.k]))}% executado`), colSpan: 4, styles: { fontStyle: 'italic', textColor: 90 } }]); } body.push([l.sgc, l.desc, l.un, nf.format(l.custo)]); });
       });
-      body.push([{ content: 'Total do ponto', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } }, { content: m(r.pontos[i].total), styles: { fontStyle: 'bold', halign: 'right' } }]);
-      doc.autoTable({ startY: y, head: [['Item', 'Descrição', 'UN', 'P. unit. (R$)', 'Quantidade', 'Total (R$)']], body, headStyles: head, styles: { fontSize: 7.5, cellPadding: 1.4 }, columnStyles: cols, margin: { left: M, right: M } });
+      body.push([{ content: 'Total do ponto', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, { content: nf.format(r.pontos[i].total), styles: { fontStyle: 'bold', halign: 'right' } }]);
+      doc.autoTable({ startY: y, head: [['Item', 'Descrição', 'UN', 'Total (R$)']], body, headStyles: head, ...contabil(3), styles: { fontSize: 7.5, cellPadding: 1.4 }, columnStyles: cols, margin: { left: M, right: M } });
       y = doc.lastAutoTable.finalY + 8;
     });
     if (r.verbas.length) {
       ensure(30); sub('VERBAS FIXAS / OUTROS ITENS');
-      const body = orc.verbas.map((v, i) => [v.sgc, r.verbas[i].it ? r.verbas[i].it.desc : '-', r.verbas[i].it ? r.verbas[i].it.un : '', nf.format(r.verbas[i].preco), `${nq.format(num(v.qtd))} × ${nq.format(num(v.meses))} mês × ${nq.format(num(v.pct))}%`, nf.format(r.verbas[i].custo)]);
-      body.push([{ content: 'Total', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } }, { content: m(r.totVerbas), styles: { fontStyle: 'bold', halign: 'right' } }]);
-      doc.autoTable({ startY: y, head: [['Item', 'Descrição', 'UN', 'P. unit. (R$)', 'Qtd × meses × %', 'Total (R$)']], body, headStyles: head, styles: { fontSize: 7.5, cellPadding: 1.4 }, columnStyles: { ...cols, 4: { cellWidth: 34, halign: 'right' } }, margin: { left: M, right: M } });
+      const body = orc.verbas.map((v, i) => [v.sgc, r.verbas[i].it ? r.verbas[i].it.desc : '-', r.verbas[i].it ? r.verbas[i].it.un : '', nf.format(r.verbas[i].custo)]);
+      body.push([{ content: 'Total', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, { content: nf.format(r.totVerbas), styles: { fontStyle: 'bold', halign: 'right' } }]);
+      doc.autoTable({ startY: y, head: [['Item', 'Descrição', 'UN', 'Total (R$)']], body, headStyles: head, ...contabil(3), styles: { fontSize: 7.5, cellPadding: 1.4 }, columnStyles: cols, margin: { left: M, right: M } });
       y = doc.lastAutoTable.finalY + 8;
     }
     if (orc.obs.trim()) { ensure(25); sub('OBSERVAÇÕES'); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(40); const t = doc.splitTextToSize(orc.obs, W - 2 * M); t.forEach(ln => { ensure(5); doc.text(ln, M, y + 4); y += 4.5; }); y += 8; }
-    ensure(30); doc.setDrawColor(120); doc.line(M + 10, y + 16, M + 80, y + 16); doc.setFontSize(9); doc.setTextColor(60); doc.text(orc.responsavel || 'Responsável', M + 45, y + 21, { align: 'center' }); doc.text('CBSI Soluções em Serviços', M + 45, y + 25.5, { align: 'center' });
     const n = doc.getNumberOfPages();
-    for (let k = 1; k <= n; k++) { doc.setPage(k); doc.setFontSize(8); doc.setTextColor(130); doc.text(`Orçamento ${orc.numero || ''} — página ${k} de ${n}`, W / 2, 291, { align: 'center' }); }
-    doc.save(`Orcamento_${(orc.numero || 'andaimes').replace(/[^\w-]+/g, '_')}.pdf`);
+    for (let k = 1; k <= n; k++) { doc.setPage(k); doc.setFontSize(8); doc.setTextColor(130); doc.text(`Página ${k} de ${n}`, W / 2, 291, { align: 'center' }); }
+    doc.save(`Orcamento_${(orc.cliente || orc.titulo || 'andaimes').replace(/[^\w-]+/g, '_').slice(0, 40)}_${orc.data || ''}.pdf`);
   }
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => { });
