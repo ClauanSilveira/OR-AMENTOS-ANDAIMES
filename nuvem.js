@@ -8,7 +8,7 @@
   const br = d => d ? d.split('-').reverse().join('/') : '';
   const lsGet = () => { try { return JSON.parse(localStorage.getItem('orc.nuvem')); } catch (e) { return null; } };
   const lsSet = v => { try { v ? localStorage.setItem('orc.nuvem', JSON.stringify(v)) : localStorage.removeItem('orc.nuvem'); } catch (e) { } };
-  let sess = lsGet(), admin = false, lista = [], filtro = '', msg = '', info = '', emailTmp = '', modo = 'entrar', ver = false, espera = false, rec = null;
+  let sess = lsGet(), admin = false, lista = [], filtro = '', msg = '', ok = '', okNovo = false, info = '', emailTmp = '', modo = 'entrar', ver = false, espera = false, rec = null;
   window.APP.nuvem = { get admin() { return admin; }, solicitar };
 
   const amigavel = m => {
@@ -21,6 +21,8 @@
     if (t.includes('invalid format') || t.includes('invalid email') || t.includes('valid email')) return 'Digite um e-mail válido.';
     if (t.includes('rate limit') || t.includes('security purposes') || t.includes('too many')) return 'Muitas tentativas. Aguarde um pouco e tente de novo.';
     if (t.includes('failed to fetch') || t.includes('networkerror') || t.includes('load failed')) return 'Sem conexão com a internet. Tente de novo.';
+    if (t.includes('row-level security') || t.includes('permission denied')) return 'Sem permissão no banco. O SQL de configuração do Supabase precisa ser executado (ou o e-mail ainda não tem acesso).';
+    if (t.includes('could not find the table') || t.includes('does not exist') || t.includes('could not find the function')) return 'O banco ainda não foi configurado. Rode o SQL de configuração no Supabase.';
     if (t.includes('provider is not enabled') || t.includes('unsupported provider')) return 'Login com Google ainda não foi ativado no servidor.';
     return m;
   };
@@ -46,7 +48,7 @@
   }
   const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
   // e-mail logado + botão Sair no cabeçalho, visível em todas as abas
-  function sair() { sess = null; admin = false; lista = []; lsSet(null); msg = ''; info = ''; modo = 'entrar'; gate(); document.querySelector('nav button[data-tab="orcamento"]').click(); }
+  function sair() { sess = null; admin = false; lista = []; lsSet(null); msg = ''; ok = ''; info = ''; modo = 'entrar'; gate(); document.querySelector('nav button[data-tab="orcamento"]').click(); }
   function barraUser() {
     let b = $('#nuvUser');
     if (!b) { const t = document.querySelector('.topo-tit'); if (!t) return; b = document.createElement('div'); b.id = 'nuvUser'; b.className = 'user-chip'; t.after(b); }
@@ -129,7 +131,7 @@
   }
   // botão da aba Visita: envia a visita atual e vai para a aba Solicitações
   async function solicitar() {
-    await enviar(); msg = 'Visita enviada como solicitação.';
+    await enviar(); msg = ''; ok = 'Solicitação enviada! Ela aparece abaixo com o status "Não iniciado".'; okNovo = true;
     document.querySelector('nav button[data-tab="nuvem"]').click();
   }
   async function importar(id) {
@@ -146,8 +148,9 @@
     gate();
     const vis = lista.filter(n => !filtro || n.status === filtro);
     root.innerHTML = `<div class="card"><h2>Solicitações ${admin ? '(administrador)' : ''}</h2>
+      ${ok ? `<div class="lg-aviso ok" role="status">${esc(ok)}</div>` : ''}
       <p class="dica">${esc(sess.email)} • ${admin ? 'você vê todas as solicitações e muda o status.' : 'você vê as suas; o status é atualizado pelo administrador.'} ${esc(msg)}</p>
-      <div class="linha-btns"><button class="btn" id="nuvEnv">Enviar visita atual</button><button class="btn sec" id="nuvAtu">Atualizar</button><button class="btn x" id="nuvSair">Sair</button></div>
+      <div class="linha-btns"><button class="btn" id="nuvNova">+ Nova solicitação</button><button class="btn sec" id="nuvEnv">Enviar visita atual</button><button class="btn sec" id="nuvAtu">Atualizar</button><button class="btn x" id="nuvSair">Sair</button></div>
       <div class="seletor"><select id="nuvFil"><option value="">Todos os status (${lista.length})</option>${STATUS.map(s => `<option ${s === filtro ? 'selected' : ''} value="${s}">${s} (${lista.filter(n => n.status === s).length})</option>`).join('')}</select></div></div>
       ${vis.map(n => `<div class="card"><strong>${esc(n.local || 'Sem local')}</strong> <small>• ${esc(br(n.data))}</small>
         <div class="dica">${esc(n.dono_email || '')} • atualizado ${new Date(n.atualizado).toLocaleString('pt-BR')}</div>
@@ -156,8 +159,9 @@
     $('#nuvFil').onchange = e => { filtro = e.target.value; render(); };
     $('#nuvSair').onclick = sair;
     const rod = f => async () => { try { msg = ''; await f(); await atualizar(); msg = ''; } catch (e) { msg = e.message; } render(); };
-    $('#nuvAtu').onclick = rod(async () => { });
-    $('#nuvEnv').onclick = rod(async () => { await enviar(); msg = 'Visita enviada.'; });
+    $('#nuvNova').onclick = () => { ok = ''; window.APP.novaVisita(); };
+    $('#nuvAtu').onclick = rod(async () => { ok = ''; });
+    $('#nuvEnv').onclick = rod(async () => { if (!window.APP.getVisAtual()) { window.APP.novaVisita(); return; } await enviar(); ok = 'Solicitação enviada! Ela aparece abaixo com o status "Não iniciado".'; });
   }
   document.addEventListener('change', async e => { const id = e.target.dataset && e.target.dataset.nst; if (!id) return; try { await api('/visitas?id=eq.' + id, { method: 'PATCH', body: { status: e.target.value } }); await atualizar(); msg = ''; } catch (er) { msg = er.message; } render(); });
   document.addEventListener('click', async e => {
@@ -179,5 +183,5 @@
   }
   let novoLogin = false;
   voltaGoogle().then(() => { if (sess) { admin = admCache(); papel(); depoisLogin(novoLogin); } else gate(); });
-  window.APP.onTab.nuvem = async () => { render(); if (sess) { try { await atualizar(); msg = ''; } catch (e) { msg = e.message; } render(); } };
+  window.APP.onTab.nuvem = async () => { if (!okNovo) ok = ''; okNovo = false; render(); if (sess) { try { await atualizar(); msg = ''; } catch (e) { msg = e.message; } render(); } };
 })();
