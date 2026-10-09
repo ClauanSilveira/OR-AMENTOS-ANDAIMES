@@ -335,7 +335,10 @@ if (typeof document !== 'undefined') (function () {
     if (orc.obs.trim()) { ensure(25); sub('OBSERVAÇÕES'); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(40); const t = doc.splitTextToSize(orc.obs, W - 2 * M); t.forEach(ln => { ensure(5); doc.text(ln, M, y + 4); y += 4.5; }); y += 8; }
     const n = doc.getNumberOfPages();
     for (let k = 1; k <= n; k++) { doc.setPage(k); doc.setFontSize(8); doc.setTextColor(130); doc.text(`Página ${k} de ${n}`, W / 2, 291, { align: 'center' }); }
-    doc.save(`Orcamento_${(orc.cliente || orc.titulo || 'andaimes').replace(/[^\w-]+/g, '_').slice(0, 40)}_${orc.data || ''}.pdf`);
+    const nome = `Orcamento_${(orc.cliente || orc.titulo || 'andaimes').replace(/[^\w-]+/g, '_').slice(0, 40)}_${orc.data || ''}.pdf`;
+    const file = new File([doc.output('blob')], nome, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: nome }).catch(() => { });
+    else doc.save(nome);
   }
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => { });
