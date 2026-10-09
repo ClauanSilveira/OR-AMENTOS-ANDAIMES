@@ -25,6 +25,34 @@
   }
   const api = async (path, o = {}) => http('/rest/v1' + path, Object.assign({ token: await token() }, o));
 
+  // ===== tela de login (bloqueia o app até entrar) =====
+  const admCache = () => { try { return localStorage.getItem('orc.nuvemAdmin') === '1'; } catch (e) { return false; } };
+  function papel() {
+    const full = !sess || admin;
+    document.querySelectorAll('nav button').forEach(b => { b.hidden = !full && !['nuvem', 'visita'].includes(b.dataset.tab); });
+  }
+  function gate() {
+    let g = $('#loginGate');
+    if (sess) { if (g) g.hidden = true; papel(); return; }
+    if (!g) { g = document.createElement('div'); g.id = 'loginGate'; g.style.cssText = 'position:fixed;inset:0;z-index:99;background:#f4f7f9;overflow:auto;padding:16px'; document.body.appendChild(g); }
+    g.hidden = false;
+    g.innerHTML = `<div class="card" style="max-width:420px;margin:8vh auto 0"><img src="assets/logo.png" alt="CBSI" style="max-width:140px;display:block;margin:0 auto 10px"><h2 style="text-align:center">Andaimes</h2>
+      <p class="dica" style="text-align:center">Entre para enviar e acompanhar solicitações de visita. ${esc(msg)}</p>
+      <div class="grid"><label>E-mail<input id="nuvEmail" type="email" autocomplete="username"></label><label>Senha<input id="nuvSenha" type="password" autocomplete="current-password"></label></div>
+      <div class="linha-btns"><button class="btn" id="nuvEntrar">Entrar</button><button class="btn sec" id="nuvCriar">Criar conta</button></div></div>`;
+    const go = criar => async () => {
+      try { await entrar($('#nuvEmail').value.trim(), $('#nuvSenha').value, criar); if (sess) await depoisLogin(); } catch (e) { msg = e.message; }
+      gate();
+    };
+    $('#nuvEntrar').onclick = go(false); $('#nuvCriar').onclick = go(true);
+  }
+  async function depoisLogin() {
+    try { await atualizar(); msg = ''; } catch (e) { msg = e.message; if (!sess) { gate(); return; } admin = admCache(); }
+    try { localStorage.setItem('orc.nuvemAdmin', admin ? '1' : '0'); } catch (e) { }
+    gate();
+    document.querySelector('nav button[data-tab="' + (admin ? 'orcamento' : 'nuvem') + '"]').click();
+  }
+
   async function entrar(email, senha, criar) {
     if (criar) {
       const j = await http('/auth/v1/signup', { method: 'POST', body: { email, password: senha } });
@@ -58,13 +86,8 @@
 
   function render() {
     const root = $('#nuvRoot'); if (!root) return;
-    if (!sess) {
-      root.innerHTML = `<div class="card"><h2>Solicitações na nuvem</h2><p class="dica">Entre para enviar suas visitas e acompanhar o status. ${esc(msg)}</p>
-        <div class="grid"><label>E-mail<input id="nuvEmail" type="email" autocomplete="username"></label><label>Senha<input id="nuvSenha" type="password" autocomplete="current-password"></label></div>
-        <div class="linha-btns"><button class="btn" id="nuvEntrar">Entrar</button><button class="btn sec" id="nuvCriar">Criar conta</button></div></div>`;
-      const go = criar => async () => { try { await entrar($('#nuvEmail').value.trim(), $('#nuvSenha').value, criar); if (sess) await atualizar(); } catch (e) { msg = e.message; } render(); };
-      $('#nuvEntrar').onclick = go(false); $('#nuvCriar').onclick = go(true); return;
-    }
+    if (!sess) { gate(); return; }
+    gate();
     const vis = lista.filter(n => !filtro || n.status === filtro);
     root.innerHTML = `<div class="card"><h2>Solicitações ${admin ? '(administrador)' : ''}</h2>
       <p class="dica">${esc(sess.email)} • ${admin ? 'você vê todas as solicitações e muda o status.' : 'você vê as suas; o status é atualizado pelo administrador.'} ${esc(msg)}</p>
@@ -75,7 +98,7 @@
         <div class="linha-btns">${admin ? `<select data-nst="${n.id}">${STATUS.map(s => `<option ${s === n.status ? 'selected' : ''}>${s}</option>`).join('')}</select>` : `<strong>${esc(n.status)}</strong>`}
         <button class="btn sec mini" data-nimp="${n.id}">Abrir no app</button>${admin || n.status === 'Não iniciado' ? `<button class="btn x mini" data-ndel="${n.id}">Excluir</button>` : ''}</div></div>`).join('') || '<div class="card"><p class="dica">Nenhuma solicitação.</p></div>'}`;
     $('#nuvFil').onchange = e => { filtro = e.target.value; render(); };
-    $('#nuvSair').onclick = () => { sess = null; admin = false; lista = []; lsSet(null); msg = ''; render(); };
+    $('#nuvSair').onclick = () => { sess = null; admin = false; lista = []; lsSet(null); msg = ''; render(); document.querySelector('nav button[data-tab="orcamento"]').click(); };
     const rod = f => async () => { try { msg = ''; await f(); await atualizar(); msg = ''; } catch (e) { msg = e.message; } render(); };
     $('#nuvAtu').onclick = rod(async () => { });
     $('#nuvEnv').onclick = rod(async () => { await enviar(); msg = 'Visita enviada.'; });
@@ -88,5 +111,6 @@
       else if (d.ndel && confirm('Excluir esta solicitação da nuvem?')) { await api('/visitas?id=eq.' + d.ndel, { method: 'DELETE' }); await atualizar(); render(); }
     } catch (er) { alert(er.message); }
   });
+  if (sess) { admin = admCache(); papel(); depoisLogin(); } else gate();
   window.APP.onTab.nuvem = async () => { render(); if (sess) { try { await atualizar(); msg = ''; } catch (e) { msg = e.message; } render(); } };
 })();
