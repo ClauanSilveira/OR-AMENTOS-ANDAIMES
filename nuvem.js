@@ -43,15 +43,16 @@
       <div class="linha-btns"><button class="btn sec" id="nuvGoogle" style="width:100%">Entrar com Google</button></div></div>`;
     $('#nuvGoogle').onclick = () => { location.href = URL + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(location.origin + location.pathname); };
     const go = criar => async () => {
-      try { await entrar($('#nuvEmail').value.trim(), $('#nuvSenha').value, criar); if (sess) await depoisLogin(); } catch (e) { msg = e.message; }
+      try { await entrar($('#nuvEmail').value.trim(), $('#nuvSenha').value, criar); if (sess) await depoisLogin(true); } catch (e) { msg = e.message; }
       gate();
     };
     $('#nuvEntrar').onclick = go(false); $('#nuvCriar').onclick = go(true);
   }
-  async function depoisLogin() {
+  async function depoisLogin(novo) {
     try { await atualizar(); msg = ''; } catch (e) { msg = e.message; if (!sess) { gate(); return; } admin = admCache(); }
     try { localStorage.setItem('orc.nuvemAdmin', admin ? '1' : '0'); } catch (e) { }
     gate();
+    if (novo && admin) window.APP.orcEmBranco();
     document.querySelector('nav button[data-tab="' + (admin ? 'orcamento' : 'nuvem') + '"]').click();
   }
 
@@ -120,8 +121,9 @@
     if (!h.get('access_token')) return;
     const j = { access_token: h.get('access_token'), refresh_token: h.get('refresh_token'), expires_in: +h.get('expires_in') || 3600 };
     history.replaceState(null, '', location.pathname + location.search);
-    try { j.user = await http('/auth/v1/user', { token: j.access_token }); guarda(j); } catch (e) { msg = e.message; }
+    try { j.user = await http('/auth/v1/user', { token: j.access_token }); guarda(j); novoLogin = true; } catch (e) { msg = e.message; }
   }
-  voltaGoogle().then(() => { if (sess) { admin = admCache(); papel(); depoisLogin(); } else gate(); });
+  let novoLogin = false;
+  voltaGoogle().then(() => { if (sess) { admin = admCache(); papel(); depoisLogin(novoLogin); } else gate(); });
   window.APP.onTab.nuvem = async () => { render(); if (sess) { try { await atualizar(); msg = ''; } catch (e) { msg = e.message; } render(); } };
 })();
