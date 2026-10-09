@@ -57,7 +57,10 @@ if (typeof document !== 'undefined') (function () {
   const CHK_E = [['limpeza', 'Necessita de limpeza no local'], ['@limpeza', ''], ['parada', 'Execução em parada'], ['rotina', 'Execução em rotina'], ['bloqueio', 'Necessário bloqueio'], ['material', 'Material disponível no local'], ['solo', 'Solo adequado para implantação'], ['acesso', 'Livre acesso para descarga do material']];
   const CHK_D = [['batedor', 'Apoio de Batedor ou acesso especial'], ['treino', 'Treinamento de acesso a área'], ['spot', 'Necessidade de SPOT'], ['interf', 'Interferência de outras empresas'], ['ancora', 'Ponto de ancoragem'], ['andRotina', 'Andaime de Rotina'], ['andExtra', 'Andaime Extra']];
   const tipoOpts = sel => Object.entries(CORE.TIPOS).map(([k, t]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(t.nome)}</option>`).join('');
-  const novaVisita = () => ({ id: uid(), data: hoje(), representante: '', solicitante: '', local: '', inicio: '', equipe: '', prioridade: '', checks: {}, pontosLimpeza: '', obs: '', andaimes: [{ tipo: 'andaime', desc: '', c: '', l: '', a: '', q: 1 }], assCbsi: '', assCliente: '', croqui: '', fotos: [] });
+  const novaVisita = () => ({ id: uid(), data: hoje(), representante: '', solicitante: '', local: '', inicio: '', equipe: '', prioridade: '', checks: {}, pontosLimpeza: '', obs: '', andaimes: [{ tipo: 'andaime', desc: '', c: '', l: '', a: '', q: 1 }], assCbsi: '', assCliente: '', croqui: '', fotos: [], status: 'Não iniciado' });
+  const STATUS = ['Não iniciado', 'Em andamento', 'Montado', 'Desmontado', 'Cancelado'];
+  let filtroSt = '';
+  const stDe = v => v.status || 'Não iniciado';
   const nomeVis = v => (v.local || 'Sem local') + (v.data ? ' • ' + br(v.data) : '');
 
   // ===== pad de desenho =====
@@ -83,11 +86,13 @@ if (typeof document !== 'undefined') (function () {
     const chk = ([k, lab]) => k === '@limpeza' ? `<div class="chk-linha" ${vis.checks.limpeza === 's' ? '' : 'hidden'}><span style="flex:1"><input data-vf="pontosLimpeza" placeholder="Caso sim, informar pontos de limpeza" value="${esc(vis.pontosLimpeza)}"></span></div>` :
       `<div class="chk-linha"><span>${lab}</span><div class="sn"><button class="s ${vis.checks[k] === 's' ? 'on' : ''}" data-vk="${k}" data-v="s">Sim</button><button class="n ${vis.checks[k] === 'n' ? 'on' : ''}" data-vk="${k}" data-v="n">Não</button></div></div>`;
     root.innerHTML = `
-    <div class="card seletor"><select id="visSel">${visitas.map(v => `<option value="${v.id}" ${v.id === vis.id ? 'selected' : ''}>${esc(nomeVis(v))}</option>`).join('')}</select>
+    <div class="card seletor"><select id="visFil"><option value="">Todos os status (${visitas.length})</option>${STATUS.map(s => `<option value="${s}" ${s === filtroSt ? 'selected' : ''}>${s} (${visitas.filter(v => stDe(v) === s).length})</option>`).join('')}</select>
+      <select id="visSel">${visitas.filter(v => v === vis || !filtroSt || stDe(v) === filtroSt).map(v => `<option value="${v.id}" ${v.id === vis.id ? 'selected' : ''}>${esc('[' + stDe(v) + '] ' + nomeVis(v))}</option>`).join('')}</select>
       <button class="btn" id="visNova">+ Nova</button><button class="btn sec" id="visDup">Duplicar</button><button class="btn x" id="visDel">Excluir</button></div>
     <div class="card"><h2>Relatório de visita técnica</h2><div class="grid">
       ${f('data', 'Data da visita', 'date')}${f('representante', 'Representante CBSI')}${f('solicitante', 'Solicitante (cliente)')}${f('local', 'Local')}
       ${f('inicio', 'Início previsto', 'date')}${f('equipe', 'Quant. de equipe', 'number', 'min="0"')}
+      <label>Status<select data-vf="status">${STATUS.map(p => `<option ${p === stDe(vis) ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
       <label>Prioridade<select data-vf="prioridade">${['', 'Baixa', 'Média', 'Alta', 'Urgente'].map(p => `<option ${p === vis.prioridade ? 'selected' : ''}>${p}</option>`).join('')}</select></label></div></div>
     <div class="card"><h2>Itens de verificação</h2><div class="cols2"><div>${CHK_E.map(chk).join('')}</div><div>${CHK_D.map(chk).join('')}</div></div></div>
     <div class="card"><h2>Observações gerais</h2><textarea rows="5" data-vf="obs">${esc(vis.obs)}</textarea></div>
@@ -107,6 +112,7 @@ if (typeof document !== 'undefined') (function () {
     pad($('#cvAssC'), 600, 240, () => vis.assCbsi, d => vis.assCbsi = d);
     pad($('#cvAssK'), 600, 240, () => vis.assCliente, d => vis.assCliente = d);
     $('#visFotoCam').onchange = $('#visFotoGal').onchange = addFotos;
+    $('#visFil').onchange = e => { filtroSt = e.target.value; const l = visitas.filter(v => !filtroSt || stDe(v) === filtroSt); if (l.length && !l.includes(vis)) vis = l[0]; persist(); renderVisita(); };
     $('#visSel').onchange = e => { vis = visitas.find(v => v.id === e.target.value); persist(); renderVisita(); };
     $('#visNova').onclick = novaV; $('#visDup').onclick = () => { const c = JSON.parse(JSON.stringify(vis)); c.id = uid(); visitas.push(c); vis = c; persist(); renderVisita(); };
     $('#visDel').onclick = () => { if (confirm('Excluir esta visita?')) { visitas = visitas.filter(v => v !== vis); vis = visitas[0]; persist(); renderVisita(); } };
@@ -161,6 +167,7 @@ if (typeof document !== 'undefined') (function () {
     const d = e.target.dataset;
     if (d.vfo !== undefined) { vis.fotos[d.vfo].t = e.target.value; persist(); return; }
     if (d.vf !== undefined) vis[d.vf] = e.target.value; else if (d.va !== undefined) vis.andaimes[d.va][d.k] = e.target.value; else return;
+    if (d.vf === 'status') { renderVisita(); return; }
     if (d.vf === 'local' || d.vf === 'data') $('#visBar').textContent = nomeVis(vis); persist(); if (d.va !== undefined) atualizaVis();
   });
   $('#visRoot').addEventListener('click', e => {
