@@ -1,4 +1,4 @@
-const V='orc-v13';
+const V='orc-v14';
 const F=['./','index.html','styles.css','app.js','extra.js','nuvem.js','precos.js','logos.js','manifest.json','vendor/jspdf.umd.min.js','vendor/jspdf.plugin.autotable.min.js','assets/logo.png','assets/apple-touch-icon.png','assets/logo-branca.png','assets/icon-192.png','assets/icon-512.png','assets/icon-maskable-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(V).then(c=>c.addAll(F)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
