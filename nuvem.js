@@ -8,13 +8,26 @@
   const br = d => d ? d.split('-').reverse().join('/') : '';
   const lsGet = () => { try { return JSON.parse(localStorage.getItem('orc.nuvem')); } catch (e) { return null; } };
   const lsSet = v => { try { v ? localStorage.setItem('orc.nuvem', JSON.stringify(v)) : localStorage.removeItem('orc.nuvem'); } catch (e) { } };
-  let sess = lsGet(), admin = false, lista = [], filtro = '', msg = '';
+  let sess = lsGet(), admin = false, lista = [], filtro = '', msg = '', info = '', emailTmp = '', modo = 'entrar', ver = false, espera = false, rec = null;
   window.APP.nuvem = { get admin() { return admin; }, solicitar };
 
+  const amigavel = m => {
+    const t = String(m).toLowerCase();
+    if (t.includes('invalid login')) return 'E-mail ou senha incorretos.';
+    if (t.includes('not confirmed')) return 'Confirme seu e-mail pelo link que enviamos antes de entrar.';
+    if (t.includes('already registered')) return 'Este e-mail já tem conta. Use a aba Entrar.';
+    if (t.includes('at least') && t.includes('character')) return 'A senha precisa ter pelo menos 6 caracteres.';
+    if (t.includes('same password') || t.includes('different from the old')) return 'Escolha uma senha diferente da anterior.';
+    if (t.includes('invalid format') || t.includes('invalid email') || t.includes('valid email')) return 'Digite um e-mail válido.';
+    if (t.includes('rate limit') || t.includes('security purposes') || t.includes('too many')) return 'Muitas tentativas. Aguarde um pouco e tente de novo.';
+    if (t.includes('failed to fetch') || t.includes('networkerror') || t.includes('load failed')) return 'Sem conexão com a internet. Tente de novo.';
+    if (t.includes('provider is not enabled') || t.includes('unsupported provider')) return 'Login com Google ainda não foi ativado no servidor.';
+    return m;
+  };
   async function http(path, { method = 'GET', body, token, extra } = {}) {
-    const r = await fetch(URL + path, { method, headers: Object.assign({ apikey: KEY, Authorization: 'Bearer ' + (token || KEY), 'Content-Type': 'application/json' }, extra || {}), body: body ? JSON.stringify(body) : undefined });
+    let r; try { r = await fetch(URL + path, { method, headers: Object.assign({ apikey: KEY, Authorization: 'Bearer ' + (token || KEY), 'Content-Type': 'application/json' }, extra || {}), body: body ? JSON.stringify(body) : undefined }); } catch (e) { throw new Error(amigavel(e.message)); }
     const t = await r.text(); let j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { }
-    if (!r.ok) throw new Error((j && (j.msg || j.message || j.error_description || j.error)) || ('Erro ' + r.status));
+    if (!r.ok) throw new Error(amigavel((j && (j.msg || j.message || j.error_description || j.error)) || ('Erro ' + r.status)));
     return j;
   }
   const guarda = j => { sess = { token: j.access_token, refresh: j.refresh_token, email: j.user && j.user.email, exp: Date.now() + (j.expires_in || 3600) * 1000 - 60000 }; lsSet(sess); };
@@ -31,22 +44,46 @@
     const full = !sess || admin;
     document.querySelectorAll('nav button').forEach(b => { b.hidden = !full && !['nuvem', 'visita'].includes(b.dataset.tab); });
   }
+  const G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
   function gate() {
     let g = $('#loginGate');
     if (sess) { if (g) g.hidden = true; papel(); return; }
-    if (!g) { g = document.createElement('div'); g.id = 'loginGate'; g.style.cssText = 'position:fixed;inset:0;z-index:99;background:#f4f7f9;overflow:auto;padding:16px'; document.body.appendChild(g); }
+    if (!g) { g = document.createElement('div'); g.id = 'loginGate'; document.body.appendChild(g); }
     g.hidden = false;
-    g.innerHTML = `<div class="card" style="max-width:420px;margin:8vh auto 0"><img src="assets/logo.png" alt="CBSI" style="max-width:140px;display:block;margin:0 auto 10px"><h2 style="text-align:center">Andaimes</h2>
-      <p class="dica" style="text-align:center">Entre para enviar e acompanhar solicitações de visita. ${esc(msg)}</p>
-      <div class="grid"><label>E-mail<input id="nuvEmail" type="email" autocomplete="username"></label><label>Senha<input id="nuvSenha" type="password" autocomplete="current-password"></label></div>
-      <div class="linha-btns"><button class="btn" id="nuvEntrar">Entrar</button><button class="btn sec" id="nuvCriar">Criar conta</button></div>
-      <div class="linha-btns"><button class="btn sec" id="nuvGoogle" style="width:100%">Entrar com Google</button></div></div>`;
-    $('#nuvGoogle').onclick = () => { location.href = URL + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(location.origin + location.pathname); };
-    const go = criar => async () => {
-      try { await entrar($('#nuvEmail').value.trim(), $('#nuvSenha').value, criar); if (sess) await depoisLogin(true); } catch (e) { msg = e.message; }
-      gate();
+    const titulo = { entrar: 'Bem-vindo de volta', criar: 'Criar sua conta', esqueci: 'Recuperar senha', nova: 'Definir nova senha' }[modo];
+    const sub = { entrar: 'Entre para enviar e acompanhar solicitações de visita.', criar: 'Use seu e-mail ou o Google para começar.', esqueci: 'Enviaremos um link para você criar uma nova senha.', nova: 'Escolha uma senha nova para entrar.' }[modo];
+    const campoSenha = `<label class="lg-campo">Senha<div class="lg-senha"><input id="nuvSenha" type="${ver ? 'text' : 'password'}" autocomplete="${modo === 'entrar' ? 'current-password' : 'new-password'}" placeholder="${modo === 'entrar' ? 'Sua senha' : 'Mínimo 6 caracteres'}"><button type="button" class="lg-olho" id="nuvVer" aria-label="${ver ? 'Ocultar senha' : 'Mostrar senha'}">${ver ? 'Ocultar' : 'Mostrar'}</button></div></label>`;
+    g.innerHTML = `<div class="lg-wrap"><img class="lg-logo" src="assets/logo-branca.png" alt="CBSI">
+      <div class="lg-card">
+        ${modo === 'entrar' || modo === 'criar' ? `<div class="lg-abas" role="tablist"><button type="button" role="tab" class="${modo === 'entrar' ? 'on' : ''}" data-lgm="entrar">Entrar</button><button type="button" role="tab" class="${modo === 'criar' ? 'on' : ''}" data-lgm="criar">Criar conta</button></div>` : ''}
+        <h1 class="lg-tit">${titulo}</h1><p class="lg-sub">${sub}</p>
+        ${msg ? `<div class="lg-aviso erro" role="alert">${esc(msg)}</div>` : ''}${info ? `<div class="lg-aviso ok" role="status">${esc(info)}</div>` : ''}
+        <form id="nuvForm" novalidate>
+          ${modo !== 'nova' ? `<label class="lg-campo">E-mail<input id="nuvEmail" type="email" inputmode="email" autocomplete="username" placeholder="voce@empresa.com" autocapitalize="none"></label>` : ''}
+          ${modo !== 'esqueci' ? campoSenha : ''}
+          ${modo === 'entrar' ? '<button type="button" class="lg-link" data-lgm="esqueci">Esqueci a senha</button>' : ''}
+          <button class="lg-btn" id="nuvEntrar" type="submit" ${espera ? 'disabled' : ''}>${espera ? 'Aguarde…' : { entrar: 'Entrar', criar: 'Criar conta', esqueci: 'Enviar link', nova: 'Salvar senha' }[modo]}</button>
+        </form>
+        ${modo === 'entrar' || modo === 'criar' ? `<div class="lg-ou"><span>ou</span></div><button type="button" class="lg-google" id="nuvGoogle">${G}<span>Continuar com Google</span></button>` : `<button type="button" class="lg-link centro" data-lgm="entrar">Voltar para o login</button>`}
+      </div></div>`;
+    g.querySelectorAll('[data-lgm]').forEach(b => b.onclick = () => { modo = b.dataset.lgm; msg = ''; info = ''; gate(); });
+    const v = $('#nuvVer'); if (v) v.onclick = () => { ver = !ver; $('#nuvSenha').type = ver ? 'text' : 'password'; v.textContent = ver ? 'Ocultar' : 'Mostrar'; v.setAttribute('aria-label', ver ? 'Ocultar senha' : 'Mostrar senha'); };
+    const gb = $('#nuvGoogle'); if (gb) gb.onclick = () => { location.href = URL + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(location.origin + location.pathname); };
+    $('#nuvForm').onsubmit = async e => {
+      e.preventDefault(); if (espera) return;
+      const email = $('#nuvEmail') ? $('#nuvEmail').value.trim() : '', senha = $('#nuvSenha') ? $('#nuvSenha').value : '';
+      msg = ''; info = ''; emailTmp = email;
+      if (modo !== 'nova' && !email) { msg = 'Digite seu e-mail.'; return gate(); }
+      if (modo !== 'esqueci' && !senha) { msg = 'Digite sua senha.'; return gate(); }
+      espera = true; gate();
+      try {
+        if (modo === 'esqueci') { await http('/auth/v1/recover?redirect_to=' + encodeURIComponent(location.origin + location.pathname), { method: 'POST', body: { email } }); info = 'Se este e-mail tiver conta, enviamos o link de recuperação. Confira também o spam.'; modo = 'entrar'; }
+        else if (modo === 'nova') { await http('/auth/v1/user', { method: 'PUT', token: rec.access_token, body: { password: senha } }); guarda(rec); rec = null; modo = 'entrar'; await depoisLogin(true); }
+        else { await entrar(email, senha, modo === 'criar'); if (sess) await depoisLogin(true); }
+      } catch (er) { msg = er.message; }
+      espera = false; gate();
     };
-    $('#nuvEntrar').onclick = go(false); $('#nuvCriar').onclick = go(true);
+    const em = $('#nuvEmail'); if (em && !em.value) { try { em.value = emailTmp || localStorage.getItem('orc.ultimoEmail') || ''; } catch (e2) { } }
   }
   async function depoisLogin(novo) {
     try { await atualizar(); msg = ''; } catch (e) { msg = e.message; if (!sess) { gate(); return; } admin = admCache(); }
@@ -59,9 +96,10 @@
   async function entrar(email, senha, criar) {
     if (criar) {
       const j = await http('/auth/v1/signup', { method: 'POST', body: { email, password: senha } });
-      if (!j.access_token) { msg = 'Conta criada. Confirme o e-mail que você recebeu e depois entre.'; return; }
+      if (!j.access_token) { info = 'Conta criada! Enviamos um link para o seu e-mail. Confirme e depois entre.'; modo = 'entrar'; return; }
       guarda(j);
     } else guarda(await http('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password: senha } }));
+    try { localStorage.setItem('orc.ultimoEmail', email); } catch (e) { }
     msg = '';
   }
   async function atualizar() {
@@ -124,9 +162,10 @@
     const h = new URLSearchParams(location.hash.replace(/^#/, ''));
     if (h.get('error_description')) { msg = h.get('error_description'); history.replaceState(null, '', location.pathname + location.search); return; }
     if (!h.get('access_token')) return;
+    const rc = h.get('type') === 'recovery';
     const j = { access_token: h.get('access_token'), refresh_token: h.get('refresh_token'), expires_in: +h.get('expires_in') || 3600 };
     history.replaceState(null, '', location.pathname + location.search);
-    try { j.user = await http('/auth/v1/user', { token: j.access_token }); guarda(j); novoLogin = true; } catch (e) { msg = e.message; }
+    try { j.user = await http('/auth/v1/user', { token: j.access_token }); if (rc) { rec = j; modo = 'nova'; } else { guarda(j); novoLogin = true; } } catch (e) { msg = e.message; }
   }
   let novoLogin = false;
   voltaGoogle().then(() => { if (sess) { admin = admCache(); papel(); depoisLogin(novoLogin); } else gate(); });
