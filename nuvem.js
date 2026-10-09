@@ -39,7 +39,9 @@
     g.innerHTML = `<div class="card" style="max-width:420px;margin:8vh auto 0"><img src="assets/logo.png" alt="CBSI" style="max-width:140px;display:block;margin:0 auto 10px"><h2 style="text-align:center">Andaimes</h2>
       <p class="dica" style="text-align:center">Entre para enviar e acompanhar solicitações de visita. ${esc(msg)}</p>
       <div class="grid"><label>E-mail<input id="nuvEmail" type="email" autocomplete="username"></label><label>Senha<input id="nuvSenha" type="password" autocomplete="current-password"></label></div>
-      <div class="linha-btns"><button class="btn" id="nuvEntrar">Entrar</button><button class="btn sec" id="nuvCriar">Criar conta</button></div></div>`;
+      <div class="linha-btns"><button class="btn" id="nuvEntrar">Entrar</button><button class="btn sec" id="nuvCriar">Criar conta</button></div>
+      <div class="linha-btns"><button class="btn sec" id="nuvGoogle" style="width:100%">Entrar com Google</button></div></div>`;
+    $('#nuvGoogle').onclick = () => { location.href = URL + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(location.origin + location.pathname); };
     const go = criar => async () => {
       try { await entrar($('#nuvEmail').value.trim(), $('#nuvSenha').value, criar); if (sess) await depoisLogin(); } catch (e) { msg = e.message; }
       gate();
@@ -111,6 +113,15 @@
       else if (d.ndel && confirm('Excluir esta solicitação da nuvem?')) { await api('/visitas?id=eq.' + d.ndel, { method: 'DELETE' }); await atualizar(); render(); }
     } catch (er) { alert(er.message); }
   });
-  if (sess) { admin = admCache(); papel(); depoisLogin(); } else gate();
+  // volta do login com Google: tokens vêm no fragmento (#access_token=...)
+  async function voltaGoogle() {
+    const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+    if (h.get('error_description')) { msg = h.get('error_description'); history.replaceState(null, '', location.pathname + location.search); return; }
+    if (!h.get('access_token')) return;
+    const j = { access_token: h.get('access_token'), refresh_token: h.get('refresh_token'), expires_in: +h.get('expires_in') || 3600 };
+    history.replaceState(null, '', location.pathname + location.search);
+    try { j.user = await http('/auth/v1/user', { token: j.access_token }); guarda(j); } catch (e) { msg = e.message; }
+  }
+  voltaGoogle().then(() => { if (sess) { admin = admCache(); papel(); depoisLogin(); } else gate(); });
   window.APP.onTab.nuvem = async () => { render(); if (sess) { try { await atualizar(); msg = ''; } catch (e) { msg = e.message; } render(); } };
 })();
