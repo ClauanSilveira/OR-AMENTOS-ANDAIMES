@@ -147,6 +147,24 @@ if (typeof document !== 'undefined') (function () {
   });
   window.APP.onTab.visita = () => { renderVisita(); };
 
+  // visita -> orçamento atual (importa os andaimes como um ponto e calcula pela tabela de preços)
+  function opcoesVisita() {
+    const sel = $('#impVisita'); if (!sel) return;
+    sel.innerHTML = '<option value="">Importar andaimes da visita…</option>' + visitas.map(v => `<option value="${v.id}">${esc(nomeVis(v))}</option>`).join('');
+  }
+  $('#impVisita').onchange = e => {
+    const v = visitas.find(x => x.id === e.target.value); e.target.value = ''; if (!v) return;
+    const ests = v.andaimes.filter(a => a.desc || N(a.c) || N(a.l) || N(a.a)).map(a => CORE.novaEstrutura({ tipo: a.tipo, desc: a.desc, c: a.c, l: a.l, a: a.a, q: a.q || 1 }));
+    if (!ests.length) return alert('Esta visita não tem andaimes preenchidos.');
+    const o = window.APP.getOrc(), vazio = p => p.estruturas.length === 1 && !p.estruturas[0].desc && !N(p.estruturas[0].c) && !N(p.estruturas[0].l) && !N(p.estruturas[0].a);
+    if (o.pontos.length === 1 && vazio(o.pontos[0])) o.pontos = [];
+    o.pontos.push({ nome: 'VISITA ' + br(v.data) + (v.local ? ' - ' + v.local : ''), estruturas: ests });
+    if (!o.cliente) o.cliente = v.solicitante || ''; if (!o.local) o.local = v.local || ''; if (!o.responsavel) o.responsavel = v.representante || '';
+    if (!o.titulo && v.local) o.titulo = 'Orçamento de andaimes - ' + v.local;
+    window.APP.recarregarOrc();
+  };
+  window.APP.onTab.orcamento = opcoesVisita; opcoesVisita();
+
   // visita -> orçamento / programação
   $('#visToOrc').onclick = () => {
     if (!vis) return; const o = CORE.novoOrc(); o.numero = window.APP.proxNumero(); o.titulo = 'Orçamento de andaimes - ' + (vis.local || ''); o.local = vis.local; o.cliente = vis.solicitante; o.data = hoje(); o.responsavel = vis.representante;

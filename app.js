@@ -355,6 +355,7 @@ if (typeof document !== 'undefined') (function () {
   window.APP.getOrc = () => orc;
   window.APP.addOrc = o => { o.id = novoOrc().id; lista.push(o); orc = o; tudo(); salvar(); mostrar('orcamento'); };
   window.APP.mostrar = mostrar;
+  window.APP.recarregarOrc = () => { tudo(); salvar(); };
   window.APP.getLista = () => lista;
   window.APP.calcEst = e => calcEstrutura(e, mapa);
   window.APP.fmt = { esc, nf, nq, brl, ls };
