@@ -108,6 +108,7 @@ function novoOrc() {
 if (typeof module !== 'undefined') module.exports = { TIPOS, calcOrc, exemplo, novoOrc, novaEstrutura, metragem };
 
 // ---------- INTERFACE ----------
+if (typeof document !== "undefined") window.APP = { onTab: {}, getExtras: () => ({}), setExtras: () => { } };
 if (typeof document !== 'undefined') (function () {
   const $ = (s, r = document) => r.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -248,7 +249,7 @@ if (typeof document !== 'undefined') (function () {
   $('#btnDup').onclick = () => { const c = JSON.parse(JSON.stringify(orc)); c.id = novoOrc().id; c.numero = proxNumero(); c.titulo = (c.titulo || 'Orçamento') + ' (cópia)'; lista.push(c); orc = c; tudo(); salvar(); alert('Orçamento duplicado.'); };
 
   // ----- abas -----
-  function mostrar(t) { document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== 'tab-' + t); document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t)); if (t === 'salvos') renderSalvos(); if (t === 'precos') renderPrecos(); }
+  function mostrar(t) { document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== 'tab-' + t); document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t)); if (t === 'salvos') renderSalvos(); if (t === 'precos') renderPrecos(); if (window.APP.onTab[t]) window.APP.onTab[t](); window.scrollTo(0, 0); }
   document.querySelectorAll('nav button').forEach(b => b.onclick = () => mostrar(b.dataset.tab));
 
   // ----- tabela de preços -----
@@ -269,9 +270,9 @@ if (typeof document !== 'undefined') (function () {
     $('#listaSalvos').innerHTML = lista.map(o => `<div class="salvo ${o.id === orc.id ? 'atual' : ''}"><div class="info"><strong>${esc(o.titulo || 'Sem título')}</strong><br><small>${esc(o.cliente)} ${o.data ? '• ' + o.data.split('-').reverse().join('/') : ''} • ${brl(calcOrc(o, mapa).total)}</small></div><button class="btn sec mini" data-act="abrir" data-id="${o.id}">Abrir</button><button class="btn x" data-act="excluir" data-id="${o.id}">Excluir</button></div>`).join('');
   }
   $('#novoOrc').onclick = () => { orc = novoOrc(); orc.numero = proxNumero(); lista.push(orc); tudo(); salvar(); mostrar('orcamento'); };
-  $('#expOrc').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ lista, precos }, null, 1)], { type: 'application/json' })); a.download = 'orcamentos-backup.json'; a.click(); };
+  $('#expOrc').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ lista, precos, extras: window.APP.getExtras() }, null, 1)], { type: 'application/json' })); a.download = 'orcamentos-backup.json'; a.click(); };
   $('#impOrc').onclick = () => $('#fileImp').click();
-  $('#fileImp').onchange = async ev => { try { const d = JSON.parse(await ev.target.files[0].text()); const arr = d.lista || (Array.isArray(d) ? d : [d]); arr.forEach(o => { if (o && o.pontos) { o.id = novoOrc().id; lista.push(o); } }); if (d.precos && confirm('Importar também a tabela de preços do arquivo?')) { precos = d.precos; rebuild(); } tudo(); salvar(); } catch (e) { alert('Arquivo inválido.'); } ev.target.value = ''; };
+  $('#fileImp').onchange = async ev => { try { const d = JSON.parse(await ev.target.files[0].text()); const arr = d.lista || (Array.isArray(d) ? d : [d]); arr.forEach(o => { if (o && o.pontos) { o.id = novoOrc().id; lista.push(o); } }); if (d.extras) window.APP.setExtras(d.extras); if (d.precos && confirm('Importar também a tabela de preços do arquivo?')) { precos = d.precos; rebuild(); } tudo(); salvar(); } catch (e) { alert('Arquivo inválido.'); } ev.target.value = ''; };
   // exemplo
   const ex = document.createElement('button'); ex.className = 'btn sec'; ex.textContent = 'Carregar exemplo da planilha'; ex.onclick = () => { orc = exemplo(); orc.numero = proxNumero(); lista.push(orc); tudo(); salvar(); mostrar('orcamento'); }; $('#novoOrc').parentNode.insertBefore(ex, $('#impOrc'));
 
@@ -341,6 +342,11 @@ if (typeof document !== 'undefined') (function () {
     else doc.save(nome);
   }
 
+  window.APP.getOrc = () => orc;
+  window.APP.addOrc = o => { o.id = novoOrc().id; lista.push(o); orc = o; tudo(); salvar(); mostrar('orcamento'); };
+  window.APP.mostrar = mostrar;
+  window.APP.fmt = { esc, nf, nq, brl, ls };
+  window.APP.proxNumero = proxNumero;
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => { });
   tudo(); salvar();
 })();

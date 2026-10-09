@@ -44,3 +44,19 @@ details summary{cursor:pointer;color:var(--azul);font-weight:600;margin:6px 0}
 .salvo{display:flex;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--borda);flex-wrap:wrap}
 .salvo.atual{background:#e9f6fd}.salvo .info{flex:1;min-width:180px}
 @media print{.topo,.barra{display:none}}
+
+nav{display:flex;flex-wrap:wrap}nav button{padding:8px 10px}
+.seletor{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.seletor select{flex:1;min-width:180px}
+.chk-linha{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--borda)}
+.chk-linha span{flex:1}.sn{display:flex;gap:6px}
+.sn button{border:1px solid var(--borda);background:#fff;border-radius:6px;padding:6px 14px;font:inherit;cursor:pointer;color:var(--cinza)}
+.sn button.on.s{background:#1b7a3a;color:#fff;border-color:#1b7a3a}.sn button.on.n{background:#b3261e;color:#fff;border-color:#b3261e}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}@media(max-width:700px){.cols2{grid-template-columns:1fr}}
+.pad{width:100%;height:auto;border:1px solid var(--borda);border-radius:8px;touch-action:none;background:#fff;display:block}
+.pad.grade{background-color:#fff;background-image:linear-gradient(#e3e8ec 1px,transparent 1px),linear-gradient(90deg,#e3e8ec 1px,transparent 1px);background-size:5% 3.8%}
+.tools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}.tools .btn.on{outline:3px solid var(--ciano)}
+.cor{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--borda);cursor:pointer;padding:0}.cor.on{box-shadow:0 0 0 3px var(--ciano)}
+.res{background:#e9f6fd;border-radius:6px;padding:6px 8px;font-size:13px;margin-top:6px;color:var(--escuro)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:#e9f6fd;border-radius:8px;padding:10px}.kpi small{color:#5b6b74;display:block}.kpi strong{font-size:20px;color:var(--azul)}
+.barra div{min-width:0}.barra strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.barra .btn{white-space:nowrap;padding:9px 11px}
