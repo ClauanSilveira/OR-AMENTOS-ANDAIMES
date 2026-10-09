@@ -62,3 +62,5 @@ nav{display:flex;flex-wrap:wrap}nav button{padding:8px 10px}
 .barra div{min-width:0}.barra strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.barra .btn{white-space:nowrap;padding:9px 11px}
 
 td.ctb{min-width:130px}td.ctb div{display:flex;align-items:center;gap:4px}td.ctb span{font-size:14px}td.ctb input{text-align:right}
+
+.fotobtn{cursor:pointer;display:inline-block}.fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.foto{display:flex;flex-direction:column;gap:6px}.foto img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--borda)}

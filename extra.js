@@ -47,8 +47,8 @@ if (typeof document !== 'undefined') (function () {
   let prog = progs.find(v => v.id === ls.get('orc.progAtual', '')) || progs[0];
   let falhou = false;
   function persist() {
-    try { localStorage.setItem('orc.visitas', JSON.stringify(visitas)); localStorage.setItem('orc.progs', JSON.stringify(progs)); localStorage.setItem('orc.visAtual', JSON.stringify(vis && vis.id)); localStorage.setItem('orc.progAtual', JSON.stringify(prog && prog.id)); }
-    catch (e) { if (!falhou) { falhou = true; alert('Memória do aparelho cheia. Exporte o backup (aba Salvos) e apague visitas antigas.'); } }
+    try { localStorage.setItem('orc.visitas', JSON.stringify(visitas)); localStorage.setItem('orc.progs', JSON.stringify(progs)); localStorage.setItem('orc.visAtual', JSON.stringify(vis && vis.id)); localStorage.setItem('orc.progAtual', JSON.stringify(prog && prog.id)); return true; }
+    catch (e) { if (!falhou) { falhou = true; alert('Memória do aparelho cheia. Exporte o backup (aba Salvos) e apague visitas antigas.'); } return false; }
   }
   const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   window.APP.getExtras = () => ({ visitas, progs });
@@ -57,7 +57,7 @@ if (typeof document !== 'undefined') (function () {
   const CHK_E = [['limpeza', 'Necessita de limpeza no local'], ['@limpeza', ''], ['parada', 'Execução em parada'], ['rotina', 'Execução em rotina'], ['bloqueio', 'Necessário bloqueio'], ['material', 'Material disponível no local'], ['solo', 'Solo adequado para implantação'], ['acesso', 'Livre acesso para descarga do material']];
   const CHK_D = [['batedor', 'Apoio de Batedor ou acesso especial'], ['treino', 'Treinamento de acesso a área'], ['spot', 'Necessidade de SPOT'], ['interf', 'Interferência de outras empresas'], ['ancora', 'Ponto de ancoragem'], ['andRotina', 'Andaime de Rotina'], ['andExtra', 'Andaime Extra']];
   const tipoOpts = sel => Object.entries(CORE.TIPOS).map(([k, t]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(t.nome)}</option>`).join('');
-  const novaVisita = () => ({ id: uid(), data: hoje(), representante: '', solicitante: '', local: '', inicio: '', equipe: '', prioridade: '', checks: {}, pontosLimpeza: '', obs: '', andaimes: [{ tipo: 'andaime', desc: '', c: '', l: '', a: '', q: 1 }], assCbsi: '', assCliente: '', croqui: '' });
+  const novaVisita = () => ({ id: uid(), data: hoje(), representante: '', solicitante: '', local: '', inicio: '', equipe: '', prioridade: '', checks: {}, pontosLimpeza: '', obs: '', andaimes: [{ tipo: 'andaime', desc: '', c: '', l: '', a: '', q: 1 }], assCbsi: '', assCliente: '', croqui: '', fotos: [] });
   const nomeVis = v => (v.local || 'Sem local') + (v.data ? ' • ' + br(v.data) : '');
 
   // ===== pad de desenho =====
@@ -100,10 +100,13 @@ if (typeof document !== 'undefined') (function () {
     <div class="card"><h2>Croqui</h2><div class="tools"><button class="btn sec mini on" data-tool="pen">Caneta</button><button class="btn sec mini" data-tool="eraser">Borracha</button>
       ${['#000000', '#1565c0', '#c62828'].map(c => `<button class="cor ${c === ferr.cor ? 'on' : ''}" style="background:${c}" data-cor="${c}"></button>`).join('')}
       <button class="btn x mini" data-limpa="croqui">Limpar</button></div><canvas id="cvCroqui" class="pad grade"></canvas></div>
+    <div class="card"><h2>Fotos</h2><div class="linha-btns"><label class="btn sec fotobtn">📷 Tirar foto<input type="file" accept="image/*" capture="environment" id="visFotoCam" hidden></label><label class="btn sec fotobtn">🖼️ Galeria<input type="file" accept="image/*" multiple id="visFotoGal" hidden></label></div>
+      <div class="fotos">${(vis.fotos || []).map((f, i) => `<div class="foto"><img src="${f.d}" alt="Foto ${i + 1}"><input data-vfo="${i}" placeholder="Legenda (opcional)" value="${esc(f.t)}"><button class="btn x mini" data-vfdel="${i}">Remover</button></div>`).join('') || '<p class="dica">Nenhuma foto. As fotos saem no PDF da visita.</p>'}</div></div>
     <div class="card"><h2>Assinaturas</h2><div class="cols2"><div><small>CBSI</small><canvas id="cvAssC" class="pad"></canvas><button class="btn x mini" data-limpa="assCbsi">Limpar</button></div><div><small>Cliente</small><canvas id="cvAssK" class="pad"></canvas><button class="btn x mini" data-limpa="assCliente">Limpar</button></div></div></div>`;
     pad($('#cvCroqui'), 760, 1000, () => vis.croqui, d => vis.croqui = d);
     pad($('#cvAssC'), 600, 240, () => vis.assCbsi, d => vis.assCbsi = d);
     pad($('#cvAssK'), 600, 240, () => vis.assCliente, d => vis.assCliente = d);
+    $('#visFotoCam').onchange = $('#visFotoGal').onchange = addFotos;
     $('#visSel').onchange = e => { vis = visitas.find(v => v.id === e.target.value); persist(); renderVisita(); };
     $('#visNova').onclick = novaV; $('#visDup').onclick = () => { const c = JSON.parse(JSON.stringify(vis)); c.id = uid(); visitas.push(c); vis = c; persist(); renderVisita(); };
     $('#visDel').onclick = () => { if (confirm('Excluir esta visita?')) { visitas = visitas.filter(v => v !== vis); vis = visitas[0]; persist(); renderVisita(); } };
@@ -131,15 +134,39 @@ if (typeof document !== 'undefined') (function () {
     if (!vis.local) vis.local = o.local || ''; if (!vis.solicitante) vis.solicitante = o.cliente || '';
     persist(); renderVisita();
   }
+  // fotos: redimensiona (máx. 1280px) e comprime em JPEG para caber no localStorage
+  function reduzFoto(file) {
+    return new Promise((ok, no) => {
+      const url = URL.createObjectURL(file), im = new Image();
+      im.onload = () => {
+        const k = Math.min(1, 1280 / Math.max(im.width, im.height)), w = Math.round(im.width * k), h = Math.round(im.height * k), c = document.createElement('canvas');
+        c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(im, 0, 0, w, h);
+        URL.revokeObjectURL(url); ok({ d: c.toDataURL('image/jpeg', 0.7), w, h, t: '' });
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); no(new Error('imagem inválida')); };
+      im.src = url;
+    });
+  }
+  async function addFotos(e) {
+    const files = [...e.target.files]; e.target.value = ''; if (!files.length) return;
+    vis.fotos = vis.fotos || [];
+    for (const f of files) {
+      try { const ft = await reduzFoto(f); vis.fotos.push(ft); if (!persist()) { vis.fotos.pop(); break; } }
+      catch (err) { alert('Não foi possível ler a foto.'); }
+    }
+    renderVisita();
+  }
   function novaV() { vis = novaVisita(); visitas.push(vis); persist(); renderVisita(); }
   $('#visRoot').addEventListener('input', e => {
     const d = e.target.dataset;
+    if (d.vfo !== undefined) { vis.fotos[d.vfo].t = e.target.value; persist(); return; }
     if (d.vf !== undefined) vis[d.vf] = e.target.value; else if (d.va !== undefined) vis.andaimes[d.va][d.k] = e.target.value; else return;
     if (d.vf === 'local' || d.vf === 'data') $('#visBar').textContent = nomeVis(vis); persist(); if (d.va !== undefined) atualizaVis();
   });
   $('#visRoot').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
     if (d.vk) { vis.checks[d.vk] = vis.checks[d.vk] === d.v ? '' : d.v; persist(); renderVisita(); }
+    else if (d.vfdel !== undefined) { if (confirm('Remover esta foto?')) { vis.fotos.splice(d.vfdel, 1); persist(); renderVisita(); } }
     else if (d.vdel !== undefined) { vis.andaimes.splice(d.vdel, 1); persist(); renderVisita(); }
     else if (d.tool) { ferr.borracha = d.tool === 'eraser'; document.querySelectorAll('[data-tool]').forEach(x => x.classList.toggle('on', x === b)); }
     else if (d.cor) { ferr.cor = d.cor; ferr.borracha = false; document.querySelectorAll('[data-cor]').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('[data-tool]').forEach(x => x.classList.toggle('on', x.dataset.tool === 'pen')); }
@@ -259,6 +286,13 @@ if (typeof document !== 'undefined') (function () {
     const gx = M, gy = 39, gw = W - 2 * M, gh = 245; doc.setDrawColor(215); doc.setLineWidth(0.1);
     for (let x = gx; x <= gx + gw + .01; x += 5) doc.line(x, gy, x, gy + gh); for (let yy = gy; yy <= gy + gh + .01; yy += 5) doc.line(gx, yy, gx + gw, yy);
     doc.setDrawColor(40); doc.setLineWidth(0.3); doc.rect(gx, gy, gw, gh); if (v.croqui) doc.addImage(v.croqui, 'PNG', gx, gy, gw, gh);
+    (v.fotos || []).forEach((f, i) => {
+      if (i % 2 === 0) { doc.addPage(); cab(doc, 'RELATÓRIO VISITA TÉCNICA ANDAIME - PARÁ', 'FO - 1939', 'Revisão:   0', 'Data Rev.:   26/02/2026'); doc.setFillColor(...AZ); doc.rect(M, 33, W - 2 * M, 6, 'F'); doc.setTextColor(255); doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('Registro Fotográfico', W / 2, 37.2, { align: 'center' }); }
+      const top = 42 + (i % 2) * 124, bw = W - 2 * M, bh = 112, k = Math.min(bw / f.w, bh / f.h), w = f.w * k, h = f.h * k;
+      doc.setDrawColor(40); doc.setLineWidth(0.2); doc.rect(M, top, bw, bh + 8);
+      doc.addImage(f.d, 'JPEG', M + (bw - w) / 2, top + (bh - h) / 2, w, h);
+      doc.setTextColor(20); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text(`Foto ${i + 1}${f.t ? ' - ' + f.t : ''}`.slice(0, 110), M + 2, top + bh + 5.5);
+    });
     const n = doc.getNumberOfPages(); for (let k = 1; k <= n; k++) { doc.setPage(k); doc.setFontSize(8); doc.setTextColor(120); doc.text(`Página ${k} de ${n}`, W / 2, 291, { align: 'center' }); }
     entrega(doc, `Visita_${(v.local || 'andaimes').replace(/[^\w-]+/g, '_').slice(0, 30)}_${v.data}.pdf`);
   }
