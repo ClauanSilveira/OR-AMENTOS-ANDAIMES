@@ -9,7 +9,7 @@
   const lsGet = () => { try { return JSON.parse(localStorage.getItem('orc.nuvem')); } catch (e) { return null; } };
   const lsSet = v => { try { v ? localStorage.setItem('orc.nuvem', JSON.stringify(v)) : localStorage.removeItem('orc.nuvem'); } catch (e) { } };
   let sess = lsGet(), admin = false, lista = [], filtro = '', msg = '';
-  window.APP.nuvem = { get admin() { return admin; } };
+  window.APP.nuvem = { get admin() { return admin; }, solicitar };
 
   async function http(path, { method = 'GET', body, token, extra } = {}) {
     const r = await fetch(URL + path, { method, headers: Object.assign({ apikey: KEY, Authorization: 'Bearer ' + (token || KEY), 'Content-Type': 'application/json' }, extra || {}), body: body ? JSON.stringify(body) : undefined });
@@ -78,6 +78,11 @@
     const linha = { local: v.local || null, data: v.data || null, dados };
     if (nuvemId) { await api('/visitas?id=eq.' + nuvemId, { method: 'PATCH', body: linha }); }
     else { const r = await api('/visitas', { method: 'POST', body: linha, extra: { Prefer: 'return=representation' } }); v.nuvemId = r[0].id; v.status = r[0].status; window.APP.refreshVis(); }
+  }
+  // botão da aba Visita: envia a visita atual e vai para a aba Solicitações
+  async function solicitar() {
+    await enviar(); msg = 'Visita enviada como solicitação.';
+    document.querySelector('nav button[data-tab="nuvem"]').click();
   }
   async function importar(id) {
     const r = await api('/visitas?id=eq.' + id + '&select=id,status,dados');

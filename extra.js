@@ -92,7 +92,7 @@ if (typeof document !== 'undefined') (function () {
     root.innerHTML = `
     <div class="card seletor"><select id="visFil"><option value="">Todos os status (${visitas.length})</option>${STATUS.map(s => `<option value="${s}" ${s === filtroSt ? 'selected' : ''}>${s} (${visitas.filter(v => stDe(v) === s).length})</option>`).join('')}</select>
       <select id="visSel">${visitas.filter(v => v === vis || !filtroSt || stDe(v) === filtroSt).map(v => `<option value="${v.id}" ${v.id === vis.id ? 'selected' : ''}>${esc('[' + stDe(v) + '] ' + nomeVis(v))}</option>`).join('')}</select>
-      <button class="btn" id="visNova">+ Nova</button><button class="btn sec" id="visDup">Duplicar</button><button class="btn x" id="visDel">Excluir</button></div>
+      <button class="btn" id="visNova">+ Nova</button><button class="btn pdf" id="visSolic">Enviar solicitação</button><button class="btn sec" id="visDup">Duplicar</button><button class="btn x" id="visDel">Excluir</button></div>
     <div class="card"><h2>Relatório de visita técnica</h2><div class="grid">
       ${f('data', 'Data da visita', 'date')}${f('representante', 'Representante CBSI')}${f('solicitante', 'Solicitante (cliente)')}${f('local', 'Local')}
       ${f('inicio', 'Início previsto', 'date')}${f('equipe', 'Quant. de equipe', 'number', 'min="0"')}
@@ -118,6 +118,7 @@ if (typeof document !== 'undefined') (function () {
     $('#visFotoCam').onchange = $('#visFotoGal').onchange = addFotos;
     $('#visFil').onchange = e => { filtroSt = e.target.value; const l = visitas.filter(v => !filtroSt || stDe(v) === filtroSt); if (l.length && !l.includes(vis)) vis = l[0]; persist(); renderVisita(); };
     $('#visSel').onchange = e => { vis = visitas.find(v => v.id === e.target.value); persist(); renderVisita(); };
+    $('#visSolic').onclick = async () => { try { await window.APP.nuvem.solicitar(); } catch (e) { alert(e.message); } };
     $('#visNova').onclick = novaV; $('#visDup').onclick = () => { const c = JSON.parse(JSON.stringify(vis)); c.id = uid(); visitas.push(c); vis = c; persist(); renderVisita(); };
     $('#visDel').onclick = () => { if (confirm('Excluir esta visita?')) { visitas = visitas.filter(v => v !== vis); vis = visitas[0]; persist(); renderVisita(); } };
     $('#visAdd').onclick = () => { vis.andaimes.push({ tipo: 'andaime', desc: '', c: '', l: '', a: '', q: 1 }); persist(); renderVisita(); };
