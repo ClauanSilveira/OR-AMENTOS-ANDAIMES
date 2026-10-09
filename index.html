@@ -20,7 +20,9 @@
   <div class="topo-tit">Orçamentos de Andaimes</div>
   <nav>
     <button data-tab="orcamento" class="on">Orçamento</button>
-    <button data-tab="precos">Tabela de preços</button>
+    <button data-tab="visita">Visita</button>
+    <button data-tab="prog">Programação</button>
+    <button data-tab="precos">Preços</button>
     <button data-tab="salvos">Salvos</button>
   </nav>
 </header>
@@ -61,7 +63,20 @@
     <div id="totais"></div>
     <label>Observações / condições (aparecem no PDF)<textarea rows="4" data-f="obs"></textarea></label>
   </div>
+<footer class="barra">
+  <div><small>Total</small><strong id="barTotal">R$ 0,00</strong></div>
+  <button class="btn sec" id="btnDup">Duplicar</button>
+  <button class="btn pdf" id="btnPdf">Gerar PDF</button>
+</footer>
 </section>
+
+<!-- VISITA -->
+<section id="tab-visita" hidden><div id="visRoot"></div>
+<footer class="barra"><div><small>Visita técnica</small><strong id="visBar">—</strong></div><button class="btn sec" id="visToOrc">Orçamento</button><button class="btn sec" id="visToProg">Programar</button><button class="btn pdf" id="visPdf">Gerar PDF</button></footer></section>
+
+<!-- PROGRAMAÇÃO -->
+<section id="tab-prog" hidden><div id="progRoot"></div>
+<footer class="barra"><div><small>Duração total</small><strong id="progBar">—</strong></div><button class="btn pdf" id="progPdf">Gerar PDF</button></footer></section>
 
 <!-- PREÇOS -->
 <section id="tab-precos" hidden>
@@ -92,16 +107,13 @@
 </section>
 </main>
 
-<footer class="barra">
-  <div><small>Total</small><strong id="barTotal">R$ 0,00</strong></div>
-  <button class="btn sec" id="btnDup">Duplicar</button>
-  <button class="btn pdf" id="btnPdf">Gerar PDF</button>
-</footer>
+
 
 <script src="vendor/jspdf.umd.min.js"></script>
 <script src="vendor/jspdf.plugin.autotable.min.js"></script>
 <script src="precos.js"></script>
 <script src="logos.js"></script>
 <script src="app.js"></script>
+<script src="extra.js"></script>
 </body>
 </html>
