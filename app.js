@@ -29,7 +29,7 @@ function metragem(e) {
     default: return c * l * a * q;
   }
 }
-function areaPisos(e) { return num(e.c) * num(e.l) * num(e.nPisos) * (num(e.q) || 1); }
+function areaPisos(e) { return num(e.c) * num(e.l) * num(e.nPisos); }
 
 // devolve linhas [{sgc,qtd,regime,grupo}] sem preços
 function linhasDaEstrutura(e) {
