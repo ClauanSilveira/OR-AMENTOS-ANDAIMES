@@ -60,3 +60,5 @@ nav{display:flex;flex-wrap:wrap}nav button{padding:8px 10px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .kpi{background:#e9f6fd;border-radius:8px;padding:10px}.kpi small{color:#5b6b74;display:block}.kpi strong{font-size:20px;color:var(--azul)}
 .barra div{min-width:0}.barra strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.barra .btn{white-space:nowrap;padding:9px 11px}
+
+td.ctb{min-width:130px}td.ctb div{display:flex;align-items:center;gap:4px}td.ctb span{font-size:14px}td.ctb input{text-align:right}

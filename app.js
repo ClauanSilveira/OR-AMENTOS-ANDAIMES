@@ -17,6 +17,7 @@ const REGIMES = [
   { k: 'pNot', base: 3, nome: 'Seg–Sex noturno/extra' },
   { k: 'pFds', base: 4, nome: 'Sáb/Dom/feriado' },
 ];
+const numBr = v => { v = String(v).trim(); if (v.includes(',')) v = v.replace(/\./g, '').replace(',', '.'); const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 
 function metragem(e) {
@@ -223,7 +224,7 @@ if (typeof document !== 'undefined') (function () {
       tgt[d.k] = el.type === 'checkbox' ? el.checked : el.value;
       if (el.type === 'checkbox' || d.rerender !== undefined) { if (d.rerender !== undefined) { renderPontos(); salvar(); return; } }
     } else if (d.v !== undefined) { orc.verbas[d.v][d.k] = el.value; }
-    else if (d.pr !== undefined) { const p = precos[d.pr]; p[d.k] = d.k === 'preco' ? num(el.value) : el.value; rebuild(); }
+    else if (d.pr !== undefined) { const p = precos[d.pr]; p[d.k] = d.k === 'preco' ? numBr(el.value) : el.value; rebuild(); }
     else return;
     refresh(); salvar();
   });
@@ -258,9 +259,10 @@ if (typeof document !== 'undefined') (function () {
     $('#tabPrecos').innerHTML = '<tr><th>SGC</th><th>Contrato</th><th>Descrição</th><th>UN</th><th class="n">Preço unit. (R$)</th><th></th></tr>' +
       precos.map((p, i) => ({ p, i })).filter(({ p }) => !q || (p.sgc + ' ' + p.desc).toLowerCase().includes(q)).map(({ p, i }) => {
         const h = p.grupo !== g ? `<tr class="grp"><td colspan="6">${esc(p.grupo || 'Sem grupo')}</td></tr>` : ''; g = p.grupo;
-        return h + `<tr><td><input data-pr="${i}" data-k="sgc" value="${esc(p.sgc)}" size="5"></td><td><input data-pr="${i}" data-k="linha" value="${esc(p.linha)}" size="4"></td><td><input data-pr="${i}" data-k="desc" value="${esc(p.desc)}"></td><td><input data-pr="${i}" data-k="un" value="${esc(p.un)}" size="8"></td><td><input type="number" step="any" data-pr="${i}" data-k="preco" value="${p.preco}"></td><td><button class="btn x" data-act="delPreco" data-pr="${i}">✕</button></td></tr>`;
+        return h + `<tr><td><input data-pr="${i}" data-k="sgc" value="${esc(p.sgc)}" size="5"></td><td><input data-pr="${i}" data-k="linha" value="${esc(p.linha)}" size="4"></td><td><input data-pr="${i}" data-k="desc" value="${esc(p.desc)}"></td><td><input data-pr="${i}" data-k="un" value="${esc(p.un)}" size="8"></td><td class="ctb"><div><span>R$</span><input inputmode="decimal" data-pr="${i}" data-k="preco" value="${nf.format(p.preco || 0)}"></div></td><td><button class="btn x" data-act="delPreco" data-pr="${i}">✕</button></td></tr>`;
       }).join('');
   }
+  document.addEventListener('focusout', ev => { const el = ev.target; if (el.dataset && el.dataset.k === 'preco' && el.dataset.pr !== undefined) el.value = nf.format(numBr(el.value)); });
   $('#buscaPreco').oninput = renderPrecos;
   $('#addPreco').onclick = () => { precos.push({ sgc: 'novo', linha: '', desc: 'Novo item', un: 'un', preco: 0, grupo: 'Itens adicionais' }); rebuild(); renderPrecos(); salvar(); };
   $('#resetPrecos').onclick = () => { if (confirm('Restaurar todos os preços para os valores da planilha?')) { precos = JSON.parse(JSON.stringify(window.PRECOS_PADRAO)); rebuild(); renderPrecos(); renderVerbas(); salvar(); } };
