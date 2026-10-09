@@ -1,7 +1,7 @@
 :root{--azul:#0E3F56;--ciano:#00ADF9;--escuro:#071B24;--cinza:#3B3B3B;--borda:#d5dde2;--fundo:#eef3f6;--amar:#FFAD00;--laranja:#D95A27}
 *{box-sizing:border-box}
-body{margin:0;font:15px/1.4 system-ui,Segoe UI,Roboto,sans-serif;background:var(--fundo);color:var(--cinza);padding-bottom:80px}
-.topo{background:var(--azul);color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+body{margin:0;font:15px/1.4 system-ui,Segoe UI,Roboto,sans-serif;background:var(--fundo);color:var(--cinza);padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+.topo{background:var(--azul);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
 .logo{height:34px}.topo-tit{font-weight:600;flex:1;min-width:160px}
 nav button{background:none;border:0;color:#cfe3ec;padding:8px 12px;font:inherit;cursor:pointer;border-bottom:3px solid transparent}
 nav button.on{color:#fff;border-color:var(--ciano)}
@@ -39,7 +39,7 @@ details summary{cursor:pointer;color:var(--azul);font-weight:600;margin:6px 0}
 @media(max-width:700px){.verba{grid-template-columns:1fr 1fr 1fr}.verba>label:first-child{grid-column:1/-1}}
 .tot-linha{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--borda)}
 .tot-linha.final{font-size:20px;font-weight:700;color:var(--azul);border:0;border-top:2px solid var(--azul);margin-top:6px;padding-top:8px}
-.barra{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--borda);display:flex;gap:10px;align-items:center;padding:10px 16px;z-index:6}
+.barra{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--borda);display:flex;gap:10px;align-items:center;padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:6}
 .barra div{flex:1;display:flex;flex-direction:column;line-height:1.1}.barra strong{font-size:20px;color:var(--azul)}
 .salvo{display:flex;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--borda);flex-wrap:wrap}
 .salvo.atual{background:#e9f6fd}.salvo .info{flex:1;min-width:180px}
